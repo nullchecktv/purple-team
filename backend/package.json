@@ -1,0 +1,15 @@
+{
+  "name": "hackathon-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "sam build",
+    "deploy": "bash deploy.sh",
+    "deploy:windows": "powershell -ExecutionPolicy Bypass -File deploy.ps1",
+    "deploy:guided": "sam build && sam deploy --guided"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0"
+  }
+}

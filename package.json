@@ -1,0 +1,12 @@
+{
+  "name": "hackathon-starter",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "cd backend && npm run deploy",
+    "deploy:windows": "cd backend && npm run deploy:windows",
+    "dev": "cd frontend && npm run dev",
+    "setup": "bash setup.sh",
+    "setup:windows": "powershell -ExecutionPolicy Bypass -File setup.ps1"
+  }
+}
