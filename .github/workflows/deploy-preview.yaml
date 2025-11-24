@@ -106,7 +106,6 @@ jobs:
           cat >> $GITHUB_STEP_SUMMARY << EOF
           ## Backend Deployed
           * API URL: \`$API_URL\`
-          * User Pool ID: \`$USER_POOL_ID\`
           EOF
 
   deploy-frontend-infrastructure:
