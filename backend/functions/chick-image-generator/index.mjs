@@ -22,6 +22,12 @@ export const handler = async (event) => {
       continue;
     }
 
+    // Skip if already has a chick image (prevent reprocessing)
+    if (eggRecord.chickImageUrl) {
+      console.log(`Skipping egg ${eggId} - already has chickImageUrl`);
+      continue;
+    }
+
     console.log(`Generating chick image for egg ${eggId} with hatchLikelihood ${hatchLikelihood}`);
 
     try {
