@@ -241,7 +241,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center">
                 <span className="text-white text-sm font-bold">🥚</span>
               </div>
               <div>
@@ -252,7 +252,7 @@ export default function Home() {
             <div className="flex items-center space-x-4">
               <a 
                 href="/dashboard"
-                className="px-4 py-2 text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors"
               >
                 Console
               </a>
@@ -265,7 +265,7 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="py-20 text-center">
           <div className="max-w-3xl mx-auto">
-            <div className="w-20 h-20 bg-gradient-to-br from-orange-400 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-8">
+            <div className="w-20 h-20 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-8">
               <span className="text-white text-3xl">🐣</span>
             </div>
             
@@ -282,7 +282,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
               <a 
                 href="/dashboard"
-                className="px-8 py-4 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                className="px-8 py-4 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
                 Launch Console
               </a>
@@ -374,7 +374,7 @@ export default function Home() {
                 <div className="text-3xl mb-4">{feature.icon}</div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">{feature.title}</h3>
                 <p className="text-gray-600 mb-4">{feature.description}</p>
-                <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                   {feature.service}
                 </div>
               </div>
@@ -420,7 +420,7 @@ export default function Home() {
             <div className="bg-white p-6 rounded-xl border border-gray-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">🌡️ Environment</h3>
-                <span className="px-3 py-1 bg-orange-100 text-orange-800 text-sm font-medium rounded-full">Real-time</span>
+                <span className="px-3 py-1 bg-purple-100 text-purple-800 text-sm font-medium rounded-full">Real-time</span>
               </div>
               <div className="space-y-3">
                 <EnvironmentData />
@@ -487,7 +487,7 @@ export default function Home() {
             </p>
             <a 
               href="/dashboard"
-              className="inline-flex items-center px-8 py-4 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              className="inline-flex items-center px-8 py-4 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
               Launch Console
               <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -503,7 +503,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-6 h-6 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center">
+              <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center">
                 <span className="text-white text-xs">🥚</span>
               </div>
               <span className="text-sm text-gray-600">Chicken Vision - Powered by AWS</span>
