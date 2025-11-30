@@ -30,7 +30,6 @@ Globals:
       Variables:
         AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
         TABLE_NAME: !Ref DataTable
-        API_URL: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com'
 
 Resources:
   HttpApi:
@@ -66,6 +65,59 @@ Resources:
         - AttributeName: sk
           KeyType: RANGE
 
+  ImageUploadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-image-uploads-${AWS::AccountId}'
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: ['*']
+            AllowedMethods: [PUT, POST]
+            AllowedHeaders: ['*']
+            MaxAge: 3000
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  GeneratePresignedUrlFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - generate-presigned-url.mjs
+    Properties:
+      Runtime: nodejs22.x
+      Handler: generate-presigned-url.handler
+      CodeUri: functions/image-upload/
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref ImageUploadBucket
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:PutObjectAcl
+              Resource: !Sub '${ImageUploadBucket.Arn}/*'
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /upload/presigned-url
+            Method: post
+
 Outputs:
   ApiUrl:
     Description: HTTP API endpoint URL
@@ -73,3 +125,6 @@ Outputs:
   TableName:
     Description: DynamoDB table name
     Value: !Ref DataTable
+  ImageUploadBucketName:
+    Description: S3 bucket for image uploads
+    Value: !Ref ImageUploadBucket

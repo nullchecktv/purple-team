@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import ImageUpload from '@/components/ImageUpload'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -49,6 +50,11 @@ export default function Home() {
           </h1>
           <p className="text-xl text-purple-600 mb-2">Building the future, one feature at a time</p>
           <p className="text-purple-500">R2R Hackathon 2025 💜</p>
+        </div>
+
+        <div className="mb-12">
+          <h2 className="text-3xl font-bold text-purple-900 mb-6 text-center">Upload Your Image</h2>
+          <ImageUpload />
         </div>
 
         <div className="flex justify-center mb-12">
