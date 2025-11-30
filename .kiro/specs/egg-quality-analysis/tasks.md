@@ -121,7 +121,7 @@
 
   - _Requirements: 1.3-1.5, 2.1-2.5, 8.1-8.5_
 
-- [ ] 5. Update SAM template with Lambda functions
+- [x] 5. Update SAM template with Lambda functions
   - Add Image Processor Lambda function resource
   - Add Egg Data Tool Lambda function resource
   - Configure environment variables (BEDROCK_AGENT_ID, BEDROCK_AGENT_ALIAS_ID, TABLE_NAME)
@@ -130,7 +130,7 @@
   - Add Lambda permission for EventBridge invocation
   - _Requirements: 1.2, 2.3, 9.1-9.5_
 
-- [ ] 6. Add dependencies and build configuration
+- [x] 6. Add dependencies and build configuration
   - Add @aws-sdk/client-bedrock-agent-runtime to Image Processor dependencies
   - Add @strandsinc/strands-sdk to Image Processor dependencies (if available, otherwise use AWS SDK directly)
   - Add @aws-sdk/client-dynamodb and @aws-sdk/lib-dynamodb to Egg Data Tool dependencies
@@ -145,7 +145,7 @@
   - Configure test scripts in package.json
   - _Requirements: All testing requirements_
 
-- [ ] 8. Checkpoint - Ensure all tests pass
+- [x] 8. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ]* 9. Create integration tests
@@ -155,7 +155,7 @@
   - Verify EventBridge triggering
   - _Requirements: 1.1-1.5, 2.1-2.5, 3.1-3.5, 4.1-4.11, 5.1-5.5, 6.1-6.14_
 
-- [ ] 10. Add monitoring and observability
+- [x] 10. Add monitoring and observability
   - Configure CloudWatch Logs for both Lambda functions
   - Add structured logging with contextual information
   - Configure X-Ray tracing
@@ -163,7 +163,7 @@
   - Create CloudWatch alarms for error rates and timeouts
   - _Requirements: 8.1-8.5_
 
-- [ ] 11. Create deployment documentation
+- [x] 11. Create deployment documentation
   - Document SAM deployment steps
   - Document Bedrock agent creation and configuration
   - Document environment variable configuration
@@ -171,5 +171,5 @@
   - Add troubleshooting guide
   - _Requirements: All requirements_
 
-- [ ] 12. Final checkpoint - Ensure all tests pass
+- [x] 12. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
