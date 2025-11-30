@@ -1,10 +1,9 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import Header from '@/components/Header'
 
 export const metadata: Metadata = {
-  title: 'Hackathon Demo',
-  description: 'Built with Kiro AI',
+  title: 'Chicken Hatching Management System',
+  description: 'Enterprise-grade AI-powered blockchain-ready solution for chicken egg incubation',
 }
 
 export default function RootLayout({
@@ -15,7 +14,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Header />
         {children}
       </body>
     </html>

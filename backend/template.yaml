@@ -2,6 +2,11 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Hackathon backend infrastructure
 
+Parameters:
+  AMBAccessToken:
+    Type: String
+    Description: Amazon Managed Blockchain Access Token for Ethereum
+
 Metadata:
   esbuild-properties: &esbuild-properties
     Format: esm
@@ -32,6 +37,7 @@ Globals:
         TABLE_NAME: !Ref DataTable
 
 Resources:
+  # API Gateway
   HttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -48,6 +54,346 @@ Resources:
         AllowOrigins:
           - '*'
 
+  # Lambda Functions
+  EggRegistrationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.13
+      Handler: app.lambda_handler
+      CodeUri: functions/egg-registration/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+                - dynamodb:Scan
+                - dynamodb:Query
+              Resource: !GetAtt DataTable.Arn
+      Events:
+        RegisterEgg:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/eggs
+            Method: post
+        ListEggs:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/eggs
+            Method: get
+        GetEgg:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/eggs/{eggId}
+            Method: get
+
+  EnvironmentalMonitoringFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.13
+      Handler: app.lambda_handler
+      CodeUri: functions/environmental-monitoring/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:UpdateItem
+              Resource: !GetAtt DataTable.Arn
+
+      Events:
+        GetEnvironment:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/environment/current
+            Method: get
+        PostEnvironment:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/environment/readings
+            Method: post
+        EnvironmentAlerts:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/environment/alerts
+            Method: get
+
+  RotationOptimizationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.13
+      Handler: app.lambda_handler
+      CodeUri: functions/rotation-optimization/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:UpdateItem
+              Resource: !GetAtt DataTable.Arn
+      Events:
+        ScheduleRotation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/rotation/schedule
+            Method: post
+        ExecuteRotation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/rotation/execute
+            Method: post
+        RotationStatus:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/rotation/status/{eggId}
+            Method: get
+
+  HatchPredictionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.13
+      Handler: app.lambda_handler
+      CodeUri: functions/hatch-prediction/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:UpdateItem
+              Resource: !GetAtt DataTable.Arn
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: "*"
+      Events:
+        PredictHatch:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/predictions/{eggId}
+            Method: get
+        AnalyzeVariables:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/predictions/analyze
+            Method: post
+        UpdateModel:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/predictions/retrain
+            Method: put
+
+  EmergenceMonitoringFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.13
+      Handler: app.lambda_handler
+      CodeUri: functions/emergence-monitoring/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:UpdateItem
+              Resource: !GetAtt DataTable.Arn
+            - Effect: Allow
+              Action:
+                - rekognition:DetectLabels
+                - rekognition:DetectText
+                - rekognition:DetectCustomLabels
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: "*"
+      Events:
+        LiveFeed:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/emergence/live/{eggId}
+            Method: get
+        AnalyzeCrack:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/emergence/analyze
+            Method: post
+        MonitorMovement:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/emergence/movement
+            Method: post
+        CompleteHatch:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/emergence/complete
+            Method: post
+
+  BlockchainIntegrationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.13
+      Handler: app.lambda_handler
+      CodeUri: functions/blockchain-integration/
+      Timeout: 60
+      MemorySize: 1024
+      Environment:
+        Variables:
+          AMB_ETHEREUM_ENDPOINT: !Sub 'https://ethereum-mainnet.managedblockchain.${AWS::Region}.amazonaws.com'
+          AMB_ACCESS_TOKEN: !Ref AMBAccessToken
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:UpdateItem
+              Resource: !GetAtt DataTable.Arn
+            - Effect: Allow
+              Action:
+                - managedblockchain:*
+              Resource: '*'
+      Events:
+        RecordBlockchain:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/blockchain/record
+            Method: post
+        GenerateNFT:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/blockchain/nft
+            Method: post
+        CreateContract:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/blockchain/contract
+            Method: post
+        GetCertificate:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/blockchain/certificate/{entityId}
+            Method: get
+        GetNetworkStatus:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/blockchain/network-status
+            Method: get
+
+  MaternalSimulationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.13
+      Handler: app.lambda_handler
+      CodeUri: functions/maternal-simulation/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:UpdateItem
+              Resource: !GetAtt DataTable.Arn
+      Events:
+        StartSimulation:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/maternal/activate
+            Method: post
+        GetStatus:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/maternal/status/{eggId}
+            Method: get
+        AdjustParameters:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/maternal/adjust
+            Method: put
+        GetEffectiveness:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/maternal/effectiveness/{eggId}
+            Method: get
+
+  AnalyticsReportingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.13
+      Handler: app.lambda_handler
+      CodeUri: functions/analytics-reporting/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:UpdateItem
+              Resource: !GetAtt DataTable.Arn
+      Events:
+        GetDashboard:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/analytics/dashboard
+            Method: get
+        CreateReport:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/analytics/reports
+            Method: post
+        AnalyzePatterns:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/analytics/patterns
+            Method: get
+        ExportConsortium:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/analytics/export
+            Method: put
+
+  # Data Storage
   DataTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Delete
