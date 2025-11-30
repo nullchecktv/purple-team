@@ -8,6 +8,7 @@ interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'success' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  type?: 'button' | 'submit' | 'reset';
 }
 
 export default function Button({
@@ -17,7 +18,8 @@ export default function Button({
   disabled = false,
   variant = 'primary',
   size = 'md',
-  className = ''
+  className = '',
+  type = 'button'
 }: ButtonProps) {
   const variants = {
     primary: 'bg-blue-600 hover:bg-blue-700 text-white',
@@ -34,6 +36,7 @@ export default function Button({
 
   return (
     <button
+      type={type}
       onClick={onClick}
       disabled={disabled || loading}
       className={`

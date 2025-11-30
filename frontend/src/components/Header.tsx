@@ -18,6 +18,12 @@ export default function Header() {
               Home
             </a>
             <a
+              href="/trees"
+              className="hover:text-purple-200 transition-all duration-200 font-medium hover:scale-110 transform"
+            >
+              🎄 Trees
+            </a>
+            <a
               href="/features"
               className="hover:text-purple-200 transition-all duration-200 font-medium hover:scale-110 transform"
             >

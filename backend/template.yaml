@@ -30,7 +30,6 @@ Globals:
       Variables:
         AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
         TABLE_NAME: !Ref DataTable
-        API_URL: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com'
 
 Resources:
   HttpApi:
@@ -48,6 +47,113 @@ Resources:
           - Authorization
         AllowOrigins:
           - '*'
+
+  # Christmas Tree CRUD Functions
+  CreateTreeFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - create.mjs
+    Properties:
+      Runtime: nodejs22.x
+      Handler: create.handler
+      CodeUri: functions/christmas-trees/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !GetAtt DataTable.Arn
+      Events:
+        CreateTree:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /trees
+            Method: post
+
+  ListTreesFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - list.mjs
+    Properties:
+      Runtime: nodejs22.x
+      Handler: list.handler
+      CodeUri: functions/christmas-trees/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Scan
+              Resource: !GetAtt DataTable.Arn
+      Events:
+        ListTrees:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /trees
+            Method: get
+
+  UpdateTreeFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - update.mjs
+    Properties:
+      Runtime: nodejs22.x
+      Handler: update.handler
+      CodeUri: functions/christmas-trees/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+              Resource: !GetAtt DataTable.Arn
+      Events:
+        UpdateTree:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /trees/{treeId}
+            Method: put
+
+  DeleteTreeFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - delete.mjs
+    Properties:
+      Runtime: nodejs22.x
+      Handler: delete.handler
+      CodeUri: functions/christmas-trees/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:DeleteItem
+              Resource: !GetAtt DataTable.Arn
+      Events:
+        DeleteTree:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /trees/{treeId}
+            Method: delete
 
   DataTable:
     Type: AWS::DynamoDB::Table
