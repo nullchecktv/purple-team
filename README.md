@@ -172,6 +172,37 @@ Just say "Create a feature called X" and Kiro handles the entire flow.
 
 Run the setup script to verify all prerequisites are installed.
 
+## Amazon Managed Blockchain (AMB) Access Integration 🌐
+
+The Chicken Hatching Management System now includes **real Ethereum blockchain integration** via Amazon Managed Blockchain Access!
+
+### Features
+- ✅ **Real Ethereum Transactions** - Immutable record keeping on mainnet
+- ✅ **NFT Minting** - Generate unique digital collectibles for hatched chicks
+- ✅ **Smart Contracts** - Ownership and lineage tracking
+- ✅ **Carbon Neutral** - Post-merge Ethereum with renewable energy
+- ✅ **Enterprise Security** - AWS-managed infrastructure with IAM integration
+
+### Setup AMB Access
+```bash
+./setup-amb-access.sh
+```
+
+This will:
+1. Create SSM parameter for your AMB access token
+2. Show instructions for getting real AMB credentials
+3. Configure the blockchain integration service
+
+### What Makes This Magnificently Over-Engineered
+- Using enterprise blockchain for **chicken eggs** 🥚
+- NFTs for baby chicks with rarity scoring
+- Smart contracts for poultry ownership
+- Real Ethereum gas fees for egg rotation logs
+- SHA-512 encryption for incubation data
+- Carbon footprint tracking for each transaction
+
+Perfect for the hackathon's "Magnificent Impracticability" category!
+
 ## Need Help?
 
 Check `.kiro/steering/hackathon-speed-rules.md` for detailed guidelines.
