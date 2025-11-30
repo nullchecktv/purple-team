@@ -78,18 +78,21 @@ export default function ResultsDisplay({ criteria, onStartOver, onSelectTree }: 
 
   if (results.length === 0) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <EmptyState
-          title="No trees found"
-          message="We couldn't find any trees matching all your criteria. Try adjusting your filters."
-        />
-        <div className="text-center mt-6">
-          <button
-            onClick={onStartOver}
-            className="bg-blue-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-          >
-            Start Over
-          </button>
+      <div className="max-w-7xl mx-auto px-6 py-16 animate-fade-in">
+        <div className="text-center">
+          <div className="text-7xl mb-6">🎄</div>
+          <EmptyState
+            title="No trees found"
+            description="We couldn't find any trees matching all your criteria. Try adjusting your filters."
+          />
+          <div className="mt-8">
+            <button
+              onClick={onStartOver}
+              className="bg-gradient-to-r from-green-600 to-red-600 text-white px-10 py-4 rounded-2xl font-semibold hover:shadow-2xl hover:scale-[1.02] transition-all duration-300"
+            >
+              ← Start Over
+            </button>
+          </div>
         </div>
       </div>
     );

@@ -33,8 +33,9 @@ export async function fetchDeliveryZones(): Promise<DeliveryZoneData> {
     throw new Error('Failed to fetch delivery zones');
   }
   
-  cachedZoneData = await response.json();
-  return cachedZoneData;
+  const data: DeliveryZoneData = await response.json();
+  cachedZoneData = data;
+  return data;
 }
 
 export async function validateLocation(location: string): Promise<ValidationResult> {
