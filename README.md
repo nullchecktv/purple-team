@@ -158,7 +158,7 @@ Just say "Create a feature called X" and Kiro handles the entire flow.
 ### Document for Judges
 - Take screenshots of Kiro conversations
 - Note time saved on code generation
-- Highlight debugging assistance
+- Highlight debugginßg assistance
 - Show AWS service recommendations
 - Demonstrate spec-driven development
 
@@ -175,3 +175,9 @@ Run the setup script to verify all prerequisites are installed.
 ## Need Help?
 
 Check `.kiro/steering/hackathon-speed-rules.md` for detailed guidelines.
+
+
+Run 
+```
+aws sso login --profile purple --use-device-code
+```

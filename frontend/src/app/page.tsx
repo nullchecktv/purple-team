@@ -1,104 +1,153 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react';
+import { Header } from '@/components/Header';
+import { FilterCriteria } from '@/types/tree';
+import LocationStep from '@/components/wizard/LocationStep';
+import PriceRangeStep from '@/components/wizard/PriceRangeStep';
+import QualityStep from '@/components/wizard/QualityStep';
+import DeliveryStep from '@/components/wizard/DeliveryStep';
+import ReturnPolicyStep from '@/components/wizard/ReturnPolicyStep';
+import SocialPopularityStep from '@/components/wizard/SocialPopularityStep';
+import ResultsDisplay from '@/components/wizard/ResultsDisplay';
+import TreeDetailModal from '@/components/wizard/TreeDetailModal';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
+type WizardStep = 'location' | 'price' | 'quality' | 'delivery' | 'return' | 'social' | 'results';
 
 export default function Home() {
-  const [data, setData] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [currentStep, setCurrentStep] = useState<WizardStep>('location');
+  const [criteria, setCriteria] = useState<Partial<FilterCriteria>>({});
+  const [mounted, setMounted] = useState(false);
 
-  // useEffect(() => {
-  //   fetchData()
-  // }, [])
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
 
-  const fetchData = async () => {
-    try {
-      const response = await fetch(`${API_URL}/items`)
-      const json = await response.json()
-      setData(json)
-    } catch (err) {
-      console.error('Error fetching data:', err)
+  const updateCriteria = (updates: Partial<FilterCriteria>) => {
+    setCriteria(prev => ({ ...prev, ...updates }));
+  };
+
+  const nextStep = () => {
+    const steps: WizardStep[] = ['location', 'price', 'quality', 'delivery', 'return', 'social', 'results'];
+    const currentIndex = steps.indexOf(currentStep);
+    if (currentIndex < steps.length - 1) {
+      setCurrentStep(steps[currentIndex + 1]);
     }
-  }
+  };
 
-  const createItem = async () => {
-    setLoading(true)
-    try {
-      await fetch(`${API_URL}/items`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: 'New Item',
-          value: Math.random().toFixed(2)
-        })
-      })
-      await fetchData()
-    } catch (err) {
-      console.error('Error creating item:', err)
+  const previousStep = () => {
+    const steps: WizardStep[] = ['location', 'price', 'quality', 'delivery', 'return', 'social', 'results'];
+    const currentIndex = steps.indexOf(currentStep);
+    if (currentIndex > 0) {
+      setCurrentStep(steps[currentIndex - 1]);
     }
-    setLoading(false)
+  };
+
+  const startOver = () => {
+    setCriteria({});
+    setCurrentStep('location');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('wizard-state');
+    }
+  };
+
+  if (!mounted) {
+    return null;
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-purple-50 flex justify-center">
-      <div className="max-w-4xl px-6 py-16 w-full">
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-4 text-purple-900 tracking-tight">
-            Welcome to Purple Team
-          </h1>
-          <p className="text-xl text-purple-600 mb-2">Building the future, one feature at a time</p>
-          <p className="text-purple-500">R2R Hackathon 2025 💜</p>
-        </div>
-
-        <div className="flex justify-center mb-12">
-          <button
-            onClick={createItem}
-            disabled={loading}
-            className="px-8 py-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white text-lg font-semibold rounded-xl hover:from-purple-700 hover:to-purple-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105 transform"
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
-                Creating...
-              </span>
-            ) : (
-              '✨ Create New Item'
-            )}
-          </button>
-        </div>
-
-        <div className="grid gap-6">
-          {data.length === 0 ? (
-            <div className="p-12 bg-white/80 backdrop-blur border-2 border-purple-200 rounded-2xl text-center shadow-lg">
-              <div className="text-6xl mb-4">🚀</div>
-              <p className="text-xl text-purple-700 font-medium mb-2">Ready to get started?</p>
-              <p className="text-purple-500">Click the button above to create your first item!</p>
-            </div>
-          ) : (
-            data.map((item: any) => (
-              <div
-                key={item.id}
-                className="p-8 bg-white/90 backdrop-blur border border-purple-200 rounded-2xl hover:shadow-2xl hover:border-purple-300 transition-all duration-300 hover:-translate-y-1 transform"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="text-2xl font-bold text-purple-900 mb-2">{item.name}</div>
-                    <div className="text-lg text-purple-600 font-medium">{item.value}</div>
-                  </div>
-                  <div className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium">
-                    Active
-                  </div>
-                </div>
-                <div className="text-sm text-purple-400 mt-4 flex items-center gap-2">
-                  <span>📅</span>
-                  {item.createdAt}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-red-50 relative overflow-hidden">
+      {/* Festive background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 text-6xl opacity-10 animate-float">❄️</div>
+        <div className="absolute top-40 right-20 text-5xl opacity-10 animate-float-delayed">🎄</div>
+        <div className="absolute bottom-20 left-1/4 text-4xl opacity-10 animate-float">⭐</div>
+        <div className="absolute top-1/3 right-1/3 text-5xl opacity-10 animate-float-delayed">🎁</div>
       </div>
-    </main>
-  )
+      <Header />
+      
+      <main>
+        {currentStep === 'location' && (
+          <LocationStep
+            onNext={(location) => {
+              updateCriteria({ location });
+              nextStep();
+            }}
+            initialValue={criteria.location}
+          />
+        )}
+
+        {currentStep === 'price' && (
+          <PriceRangeStep
+            onNext={(priceRange) => {
+              updateCriteria({ priceRange });
+              nextStep();
+            }}
+            onBack={previousStep}
+            initialValue={criteria.priceRange}
+          />
+        )}
+
+        {currentStep === 'quality' && (
+          <QualityStep
+            onNext={(minQuality) => {
+              updateCriteria({ minQuality });
+              nextStep();
+            }}
+            onBack={previousStep}
+            initialValue={criteria.minQuality}
+          />
+        )}
+
+        {currentStep === 'delivery' && (
+          <DeliveryStep
+            onNext={(delivery) => {
+              updateCriteria({ delivery });
+              nextStep();
+            }}
+            onBack={previousStep}
+            initialValue={criteria.delivery}
+          />
+        )}
+
+        {currentStep === 'return' && (
+          <ReturnPolicyStep
+            onNext={(minReturnDays) => {
+              updateCriteria({ minReturnDays });
+              nextStep();
+            }}
+            onBack={previousStep}
+            initialValue={criteria.minReturnDays}
+          />
+        )}
+
+        {currentStep === 'social' && (
+          <SocialPopularityStep
+            onNext={(popularityLevel) => {
+              updateCriteria({ popularityLevel });
+              nextStep();
+            }}
+            onBack={previousStep}
+            initialValue={criteria.popularityLevel}
+          />
+        )}
+
+        {currentStep === 'results' && criteria.location && criteria.priceRange && (
+          <ResultsDisplay
+            criteria={criteria as FilterCriteria}
+            onStartOver={startOver}
+            onSelectTree={setSelectedTreeId}
+          />
+        )}
+
+        {selectedTreeId && (
+          <TreeDetailModal
+            treeId={selectedTreeId}
+            onClose={() => setSelectedTreeId(null)}
+          />
+        )}
+      </main>
+    </div>
+  );
 }
