@@ -144,3 +144,68 @@ Color of the chicken's legs/shanks.
 
 ### Notes
 Free-form text field for any additional LLM observations not captured by structured fields.
+
+## DynamoDB Schema
+
+### Table Structure
+- Table Name: `DataTable`
+- Primary Key: `pk` (String) - Partition key
+- Sort Key: `sk` (String) - Sort key
+
+### Global Secondary Index: `entities`
+- Partition Key: `GSI1PK` (String)
+- Sort Key: `GSI1SK` (String)
+- Projection: ALL
+
+### Key Patterns
+
+| Entity | pk | sk | GSI1PK | GSI1SK |
+|--------|----|----|--------|--------|
+| Clutch Metadata | `CLUTCH#{clutchId}` | `METADATA` | `CLUTCHES` | `{uploadTimestamp}` |
+| Egg | `CLUTCH#{clutchId}` | `EGG#{eggId}` | - | - |
+
+### Clutch Record
+```typescript
+interface ClutchRecord {
+  pk: string;              // "CLUTCH#{clutchId}"
+  sk: string;              // "METADATA"
+  id: string;              // clutchId (UUID)
+  uploadTimestamp: string; // ISO 8601 timestamp
+  imageKey: string;        // S3 object key
+  createdAt: string;       // ISO 8601 timestamp
+  GSI1PK: string;          // "CLUTCHES"
+  GSI1SK: string;          // uploadTimestamp (for sorting)
+}
+```
+
+### Egg Record
+```typescript
+interface EggRecord {
+  pk: string;              // "CLUTCH#{clutchId}"
+  sk: string;              // "EGG#{eggId}"
+  id: string;              // eggId (UUID)
+  clutchId: string;        // Parent clutch ID
+  hatchLikelihood: number;
+  possibleHenBreeds: string[];
+  predictedChickBreed: string;
+  breedConfidence: string;
+  chickenAppearance: {
+    plumageColor: string;
+    combType: string;
+    bodyType: string;
+    featherPattern: string;
+    legColor: string;
+  };
+  notes: string;
+  analysisTimestamp: string;
+}
+```
+
+### Query Patterns
+
+| Access Pattern | Operation | Key Condition |
+|----------------|-----------|---------------|
+| List all clutches | Query GSI `entities` | `GSI1PK = 'CLUTCHES'` |
+| Get clutch with eggs | Query | `pk = 'CLUTCH#{clutchId}'` |
+| Get clutch metadata | GetItem | `pk = 'CLUTCH#{clutchId}', sk = 'METADATA'` |
+| Get eggs for clutch | Query | `pk = 'CLUTCH#{clutchId}' AND begins_with(sk, 'EGG#')` |
