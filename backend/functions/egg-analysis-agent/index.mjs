@@ -57,17 +57,21 @@ const tools = [
   }
 ];
 
-// Tool handler - updates the same EGG# record with analysis results
-async function handleSaveEggAnalysis(toolInput, eggRecord, eggId) {
+// Tool handler - updates the EGG# record with analysis results using clutch key pattern
+async function handleSaveEggAnalysis(toolInput, eggRecord, eggId, clutchId) {
   const analysis = {
     ...toolInput,
     hatchLikelihood: Math.max(0, Math.min(100, toolInput.hatchLikelihood || 50))
   };
 
-  // Update the same EGG# record with analysis data (triggers MODIFY event)
+  // Build the updated record with clutch key pattern
   const updatedRecord = {
     ...eggRecord,
     ...analysis,
+    pk: clutchId ? `CLUTCH#${clutchId}` : eggRecord.pk,
+    sk: `EGG#${eggId}`,
+    id: eggId,
+    clutchId: clutchId || null,
     analysisTimestamp: new Date().toISOString()
   };
 
@@ -85,18 +89,19 @@ async function handleSaveEggAnalysis(toolInput, eggRecord, eggId) {
 
 export const handler = async (event) => {
   for (const record of event.Records) {
-    // Forwarder sends unmarshalled item directly as JSON
+    // Forwarder sends unmarshalled item directly as JSON with clutchId extracted
     const eggRecord = JSON.parse(record.body);
     const eggId = eggRecord.sk.replace('EGG#', '');
+    const clutchId = eggRecord.clutchId;
 
-    await runAgentLoop(eggRecord, eggId);
+    await runAgentLoop(eggRecord, eggId, clutchId);
   }
 
   return { statusCode: 200 };
 };
 
 
-async function runAgentLoop(eggRecord, eggId) {
+async function runAgentLoop(eggRecord, eggId, clutchId) {
   const systemPrompt = `You are an expert poultry scientist. Analyze egg characteristics and save your findings using the save_egg_analysis tool.
 
 CRITICAL SCORING GUIDELINES for hatchLikelihood:
@@ -146,8 +151,8 @@ You MUST call the save_egg_analysis tool with your analysis.`;
 
             let result;
             if (name === 'save_egg_analysis') {
-              result = await handleSaveEggAnalysis(input, eggRecord, eggId);
-              console.log('Tool executed:', name, 'Hatch likelihood:', input.hatchLikelihood);
+              result = await handleSaveEggAnalysis(input, eggRecord, eggId, clutchId);
+              console.log('Tool executed:', name, 'Hatch likelihood:', input.hatchLikelihood, 'clutchId:', clutchId);
             } else {
               result = { error: `Unknown tool: ${name}` };
             }
@@ -184,6 +189,6 @@ You MUST call the save_egg_analysis tool with your analysis.`;
         legColor: 'unknown'
       },
       notes: 'Analysis failed - using defaults'
-    }, eggRecord, eggId);
+    }, eggRecord, eggId, clutchId);
   }
 }

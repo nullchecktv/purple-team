@@ -59,11 +59,24 @@ Resources:
           AttributeType: S
         - AttributeName: sk
           AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
       KeySchema:
         - AttributeName: pk
           KeyType: HASH
         - AttributeName: sk
           KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: entities
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
       StreamSpecification:
         StreamViewType: NEW_AND_OLD_IMAGES
 
@@ -220,6 +233,10 @@ Resources:
                 - s3:PutObject
                 - s3:PutObjectAcl
               Resource: !Sub '${ImageUploadBucket.Arn}/*'
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !GetAtt DataTable.Arn
       Events:
         Api:
           Type: HttpApi
@@ -227,6 +244,60 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /upload/presigned-url
             Method: post
+
+  ListClutchesFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - index.mjs
+    Properties:
+      Runtime: nodejs22.x
+      Handler: index.handler
+      CodeUri: functions/list-clutches/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+              Resource:
+                - !GetAtt DataTable.Arn
+                - !Sub '${DataTable.Arn}/index/entities'
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /clutches
+            Method: get
+
+  GetClutchFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - index.mjs
+    Properties:
+      Runtime: nodejs22.x
+      Handler: index.handler
+      CodeUri: functions/get-clutch/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+              Resource: !GetAtt DataTable.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /clutches/{id}
+            Method: get
 
 Outputs:
   ApiUrl:

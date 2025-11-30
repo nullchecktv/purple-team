@@ -1,17 +1,22 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'node:crypto';
 
 const s3Client = new S3Client({});
+const ddbClient = new DynamoDBClient({});
+const ddb = DynamoDBDocumentClient.from(ddbClient);
+
 const BUCKET_NAME = process.env.BUCKET_NAME;
-const URL_EXPIRATION = 300; // 5 minutes
+const TABLE_NAME = process.env.TABLE_NAME;
+const URL_EXPIRATION = 300;
 
 export const handler = async (event) => {
   try {
     const body = JSON.parse(event.body);
     const { fileName, contentType } = body;
 
-    // Validate request
     if (!fileName || !contentType) {
       return {
         statusCode: 400,
@@ -23,7 +28,6 @@ export const handler = async (event) => {
       };
     }
 
-    // Validate content type is an image
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!validTypes.includes(contentType)) {
       return {
@@ -36,13 +40,25 @@ export const handler = async (event) => {
       };
     }
 
-    // Generate unique object key
-    const timestamp = new Date().toISOString().split('T')[0];
-    const uuid = randomUUID();
+    const clutchId = randomUUID();
     const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const objectKey = `uploads/${timestamp}/${uuid}-${sanitizedFileName}`;
+    const objectKey = `clutches/${clutchId}/${sanitizedFileName}`;
+    const uploadTimestamp = new Date().toISOString();
 
-    // Generate presigned URL
+    await ddb.send(new PutCommand({
+      TableName: TABLE_NAME,
+      Item: {
+        pk: `CLUTCH#${clutchId}`,
+        sk: 'METADATA',
+        id: clutchId,
+        uploadTimestamp,
+        imageKey: objectKey,
+        createdAt: uploadTimestamp,
+        GSI1PK: 'CLUTCHES',
+        GSI1SK: uploadTimestamp
+      }
+    }));
+
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: objectKey,
@@ -59,6 +75,7 @@ export const handler = async (event) => {
       body: JSON.stringify({
         presignedUrl,
         objectKey,
+        clutchId,
         expiresIn: URL_EXPIRATION
       })
     };
