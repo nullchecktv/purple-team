@@ -1,3 +1,5 @@
+import React from 'react';
+
 interface CardProps {
   children: React.ReactNode;
   className?: string;
@@ -10,14 +12,18 @@ export default function Card({ children, className = '', hoverable = false, onCl
     <div
       onClick={onClick}
       className={`
-        bg-white
-        rounded-lg
+        bg-white/80
+        backdrop-blur-xl
+        rounded-3xl
         border
-        border-gray-200
-        p-6
+        border-slate-200/60
+        p-8
+        shadow-xl
+        shadow-slate-200/50
         transition-all
-        duration-200
-        ${hoverable ? 'hover:shadow-lg hover:-translate-y-1 cursor-pointer' : ''}
+        duration-500
+        ease-out
+        ${hoverable ? 'hover:shadow-2xl hover:shadow-slate-300/50 hover:scale-105 cursor-pointer hover:bg-white/90' : ''}
         ${className}
       `}
     >
