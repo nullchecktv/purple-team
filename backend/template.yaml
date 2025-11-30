@@ -191,7 +191,6 @@ Resources:
   ImageUploadBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub '${AWS::StackName}-image-uploads-${AWS::AccountId}'
       NotificationConfiguration:
         EventBridgeConfiguration:
           EventBridgeEnabled: true
