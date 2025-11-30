@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 'use client'
 
 import { useState } from 'react'
@@ -109,10 +108,3 @@ export default function Home() {
     </main>
   )
 }
-=======
-import ChickenHatchingDashboard from '@/components/ChickenHatchingDashboard';
-
-export default function Home() {
-  return <ChickenHatchingDashboard />;
-}
->>>>>>> 00f5b12 (update)
