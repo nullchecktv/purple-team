@@ -1,11 +1,13 @@
-import { BedrockAgentRuntimeClient, InvokeAgentCommand } from '@aws-sdk/client-bedrock-agent-runtime';
-import { randomUUID } from 'crypto';
+import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { LambdaClient, InvokeCommand } from '@aws-sdk/client-lambda';
 
-const bedrockClient = new BedrockAgentRuntimeClient({});
+const bedrockClient = new BedrockRuntimeClient({});
+const s3Client = new S3Client({});
+const lambdaClient = new LambdaClient({});
 
-const BEDROCK_AGENT_ID = process.env.BEDROCK_AGENT_ID;
-const BEDROCK_AGENT_ALIAS_ID = process.env.BEDROCK_AGENT_ALIAS_ID;
-const BUCKET_NAME = process.env.BUCKET_NAME;
+const EGG_DATA_TOOL_FUNCTION = process.env.EGG_DATA_TOOL_FUNCTION;
+const MODEL_ID = 'us.amazon.nova-pro-v1:0';
 const MAX_RETRIES = 3;
 const SUPPORTED_FORMATS = ['jpg', 'jpeg', 'png', 'tiff'];
 
@@ -40,19 +42,21 @@ export const handler = async (event) => {
       };
     }
 
-    // Invoke Bedrock agent with retry logic
-    const agentResponse = await invokeAgentWithRetry(bucketName, objectKey);
+    // Get image from S3
+    const imageData = await getImageFromS3(bucketName, objectKey);
 
-    // Parse agent response
+    // Analyze image with Bedrock Converse API using tool calling
+    const result = await analyzeImageWithToolCalling(imageData, fileExtension, objectKey);
+
     const processingTimeMs = Date.now() - startTime;
     
-    console.log('Agent invocation successful');
+    console.log('Image analysis and storage successful');
     console.log(`Processing completed in ${processingTimeMs}ms`);
 
     return {
       imageKey: objectKey,
-      eggsAnalyzed: agentResponse.eggsAnalyzed || 0,
-      recordsStored: agentResponse.recordsStored || 0,
+      eggsAnalyzed: result.recordsStored || 0,
+      recordsStored: result.recordsStored || 0,
       processingTimeMs,
       status: 'success'
     };
@@ -73,67 +77,137 @@ export const handler = async (event) => {
   }
 };
 
-async function invokeAgentWithRetry(bucketName, objectKey) {
+async function getImageFromS3(bucketName, objectKey) {
+  console.log(`Fetching image from S3: ${bucketName}/${objectKey}`);
+  
+  const command = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: objectKey
+  });
+
+  const response = await s3Client.send(command);
+  const imageBytes = await response.Body.transformToByteArray();
+  
+  console.log(`Image fetched: ${imageBytes.length} bytes`);
+  return imageBytes;
+}
+
+const eggDataToolSpec = {
+  toolSpec: {
+    name: 'store_egg_data',
+    description: 'Store analyzed egg data to the database. Call this tool after analyzing all eggs in the image with their quality assessments.',
+    inputSchema: {
+      json: {
+        type: 'object',
+        properties: {
+          eggs: {
+            type: 'array',
+            description: 'Array of egg analysis objects',
+            items: {
+              type: 'object',
+              properties: {
+                color: { type: 'string', description: 'Shell color (e.g., white, brown, cream, speckled brown, blue-green)' },
+                shape: { type: 'string', description: 'Egg shape (e.g., oval, round, elongated, pointed, asymmetric)' },
+                size: { type: 'string', description: 'Egg size (e.g., small, medium, large, extra-large, jumbo)' },
+                shellTexture: { type: 'string', description: 'Shell texture (e.g., smooth, rough, porous, bumpy, wrinkled)' },
+                shellIntegrity: { type: 'string', description: 'Shell condition (e.g., intact, hairline crack, cracked, chipped, broken)' },
+                hardness: { type: 'string', description: 'Shell hardness (e.g., hard, normal, soft, thin, rubbery)' },
+                spotMarkings: { type: 'string', description: 'Spots or markings (e.g., none, light speckles, heavy speckles, calcium deposits)' },
+                bloomCondition: { type: 'string', description: 'Bloom status (e.g., present, partial, absent, washed off)' },
+                cleanliness: { type: 'string', description: 'Cleanliness level (e.g., clean, slightly dirty, dirty, debris attached)' },
+                visibleDefects: { type: 'array', items: { type: 'string' }, description: 'Array of visible defects' },
+                overallGrade: { type: 'string', description: 'Quality grade (A, B, C, or non-viable)' },
+                notes: { type: 'string', description: 'Additional observations' }
+              },
+              required: ['color', 'shape', 'size', 'shellTexture', 'shellIntegrity', 'hardness', 'spotMarkings', 'bloomCondition', 'cleanliness', 'visibleDefects', 'overallGrade']
+            }
+          }
+        },
+        required: ['eggs']
+      }
+    }
+  }
+};
+
+async function analyzeImageWithToolCalling(imageBytes, format, imageKey) {
   let lastError;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      console.log(`Agent invocation attempt ${attempt + 1}/${MAX_RETRIES}`);
+      console.log(`Bedrock analysis attempt ${attempt + 1}/${MAX_RETRIES}`);
 
-      const sessionId = randomUUID();
-      const s3Location = `s3://${bucketName}/${objectKey}`;
-      
-      const inputText = `Analyze the egg image at ${s3Location}. Identify all eggs in the image, assess their quality across all 11 dimensions, and store the data using the create_egg_data tool with imageKey "${objectKey}".`;
-
-      const command = new InvokeAgentCommand({
-        agentId: BEDROCK_AGENT_ID,
-        agentAliasId: BEDROCK_AGENT_ALIAS_ID,
-        sessionId,
-        inputText
-      });
-
-      const response = await bedrockClient.send(command);
-
-      // Process the streaming response
-      let completion = '';
-      let eggsAnalyzed = 0;
-      let recordsStored = 0;
-
-      if (response.completion) {
-        for await (const event of response.completion) {
-          if (event.chunk?.bytes) {
-            const text = new TextDecoder().decode(event.chunk.bytes);
-            completion += text;
-          }
-
-          // Check for tool invocation results
-          if (event.trace?.trace?.orchestrationTrace?.observation?.actionGroupInvocationOutput) {
-            const output = event.trace.trace.orchestrationTrace.observation.actionGroupInvocationOutput;
-            console.log('Tool invocation output:', JSON.stringify(output));
-            
-            // Parse tool response to get counts
-            if (output.text) {
-              try {
-                const toolResult = JSON.parse(output.text);
-                if (toolResult.recordsStored) {
-                  recordsStored = toolResult.recordsStored;
-                  eggsAnalyzed = toolResult.recordsStored;
-                }
-              } catch (e) {
-                console.warn('Could not parse tool output:', e);
+      const messages = [
+        {
+          role: 'user',
+          content: [
+            {
+              image: {
+                format: format === 'jpg' ? 'jpeg' : format,
+                source: { bytes: imageBytes }
               }
+            },
+            {
+              text: `Analyze this egg image carefully. Identify all eggs visible and assess each one across these quality dimensions: color, shape, size, shell texture, shell integrity, hardness, spot markings, bloom condition, cleanliness, visible defects, overall grade, and any additional notes. Then use the store_egg_data tool to save the results.`
             }
+          ]
+        }
+      ];
+
+      let conversationComplete = false;
+      let toolResult = null;
+
+      while (!conversationComplete) {
+        const command = new ConverseCommand({
+          modelId: MODEL_ID,
+          messages,
+          toolConfig: { tools: [eggDataToolSpec] },
+          inferenceConfig: {
+            maxTokens: 4096,
+            temperature: 0.3
           }
+        });
+
+        const response = await bedrockClient.send(command);
+        const { stopReason, output } = response;
+
+        console.log(`Stop reason: ${stopReason}`);
+
+        if (stopReason === 'tool_use') {
+          // Extract tool use from response
+          const toolUse = output.message.content.find(c => c.toolUse);
+          
+          if (toolUse) {
+            console.log(`Tool called: ${toolUse.toolUse.name}`);
+            console.log(`Tool input: ${JSON.stringify(toolUse.toolUse.input).substring(0, 200)}...`);
+
+            // Execute the tool (call eggDataTool Lambda)
+            toolResult = await executeEggDataTool(toolUse.toolUse.input, imageKey);
+
+            // Add assistant message and tool result to conversation
+            messages.push(output.message);
+            messages.push({
+              role: 'user',
+              content: [
+                {
+                  toolResult: {
+                    toolUseId: toolUse.toolUse.toolUseId,
+                    content: [{ json: toolResult }]
+                  }
+                }
+              ]
+            });
+          }
+        } else {
+          conversationComplete = true;
         }
       }
 
-      console.log('Agent completion:', completion);
+      if (!toolResult) {
+        throw new Error('Model did not call the store_egg_data tool');
+      }
 
-      return {
-        completion,
-        eggsAnalyzed,
-        recordsStored
-      };
+      console.log(`Analysis complete: ${toolResult.recordsStored} eggs stored`);
+      return toolResult;
 
     } catch (err) {
       lastError = err;
@@ -147,5 +221,31 @@ async function invokeAgentWithRetry(bucketName, objectKey) {
     }
   }
 
-  throw new Error(`Agent invocation failed after ${MAX_RETRIES} attempts: ${lastError.message}`);
+  throw new Error(`Bedrock analysis failed after ${MAX_RETRIES} attempts: ${lastError.message}`);
+}
+
+async function executeEggDataTool(input, imageKey) {
+  console.log(`Executing eggDataTool with ${input.eggs?.length || 0} eggs`);
+
+  const payload = {
+    eggs: input.eggs,
+    imageKey
+  };
+
+  const command = new InvokeCommand({
+    FunctionName: EGG_DATA_TOOL_FUNCTION,
+    InvocationType: 'RequestResponse',
+    Payload: JSON.stringify(payload)
+  });
+
+  const response = await lambdaClient.send(command);
+  const result = JSON.parse(new TextDecoder().decode(response.Payload));
+
+  if (!result.success) {
+    console.error('eggDataTool failed:', result.errors);
+    throw new Error(`Failed to store egg data: ${result.errors?.join(', ')}`);
+  }
+
+  console.log(`Successfully stored ${result.recordsStored} records`);
+  return result;
 }

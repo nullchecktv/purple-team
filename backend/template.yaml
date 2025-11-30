@@ -166,20 +166,21 @@ Resources:
       Environment:
         Variables:
           BUCKET_NAME: !Ref ImageUploadBucket
-          BEDROCK_AGENT_ID: placeholder
-          BEDROCK_AGENT_ALIAS_ID: placeholder
+          EGG_DATA_TOOL_FUNCTION: !Ref EggDataToolFunction
       Policies:
         - S3ReadPolicy:
             BucketName: !Ref ImageUploadBucket
         - Statement:
             - Effect: Allow
               Action:
-                - bedrock:InvokeAgent
-              Resource: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/*'
+                - bedrock:InvokeModel
+              Resource:
+                - !Sub 'arn:aws:bedrock:*::foundation-model/*'
+                - !Sub 'arn:aws:bedrock:*:${AWS::AccountId}:inference-profile/*'
             - Effect: Allow
               Action:
-                - bedrock:InvokeModel
-              Resource: !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/*'
+                - lambda:InvokeFunction
+              Resource: !GetAtt EggDataToolFunction.Arn
             - Effect: Allow
               Action:
                 - logs:CreateLogGroup
