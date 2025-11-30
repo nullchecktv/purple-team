@@ -175,6 +175,84 @@ Resources:
               Filters:
                 - Pattern: '{"eventName": ["MODIFY"], "dynamodb": {"NewImage": {"sk": {"S": [{"prefix": "EGG#"}]}, "hatchLikelihood": {"N": [{"exists": true}]}}}}'
 
+  # Music Generation Resources
+  MusicBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-music-${AWS::AccountId}'
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: ['*']
+            AllowedMethods: [GET]
+            AllowedHeaders: ['*']
+            MaxAge: 3000
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
+  MusicBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MusicBucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub '${MusicBucket.Arn}/*'
+
+  EggMusicGeneratorFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - index.mjs
+    Properties:
+      Runtime: nodejs22.x
+      Handler: index.handler
+      CodeUri: functions/egg-music-generator/
+      Timeout: 60
+      MemorySize: 1024
+      Environment:
+        Variables:
+          BEDROCK_MODEL_ID: us.amazon.nova-lite-v1:0
+          ELEVENLABS_API_KEY: 'sk_770510badacbad393c4219c74b46dba2a3f4f597958fd1ef'
+          S3_BUCKET_NAME: !Ref MusicBucket
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:*
+              Resource: "*"
+                # - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/us.amazon.nova-*'
+                # - !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-*'
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:PutObjectAcl
+              Resource: !Sub '${MusicBucket.Arn}/*'
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !GetAtt DataTable.Arn
+      Events:
+        EggAnalysisComplete:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - custom.egg.analysis
+              detail-type:
+                - Egg Analysis Complete
+
   ImageUploadBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -238,3 +316,9 @@ Outputs:
   ImageUploadBucketName:
     Description: S3 bucket for image uploads
     Value: !Ref ImageUploadBucket
+  MusicBucketName:
+    Description: S3 bucket for generated music files
+    Value: !Ref MusicBucket
+  EggMusicGeneratorFunctionArn:
+    Description: ARN of the EggMusicGenerator Lambda function
+    Value: !GetAtt EggMusicGeneratorFunction.Arn

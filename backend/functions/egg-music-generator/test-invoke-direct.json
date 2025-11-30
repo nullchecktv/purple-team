@@ -1,0 +1,34 @@
+{
+  "version": "0",
+  "id": "test-event-123",
+  "detail-type": "Egg Analysis Complete",
+  "source": "custom.egg.analysis",
+  "account": "123456789012",
+  "time": "2024-01-15T12:00:00Z",
+  "region": "us-east-1",
+  "resources": [],
+  "detail": {
+    "color": "brown",
+    "shape": "oval",
+    "size": "large",
+    "shellTexture": "smooth",
+    "shellIntegrity": "intact",
+    "hardness": "hard",
+    "spotsMarkings": "light speckles",
+    "bloomCondition": "present",
+    "cleanliness": "clean",
+    "visibleDefects": [],
+    "overallGrade": "A",
+    "hatchLikelihood": 95,
+    "possibleBreeds": ["Rhode Island Red", "Plymouth Rock"],
+    "breedConfidence": "high",
+    "chickenAppearance": {
+      "plumageColor": "red-brown",
+      "combType": "single",
+      "bodyType": "large/heavy",
+      "featherPattern": "solid",
+      "legColor": "yellow"
+    },
+    "notes": "Excellent quality egg with high hatch potential"
+  }
+}
