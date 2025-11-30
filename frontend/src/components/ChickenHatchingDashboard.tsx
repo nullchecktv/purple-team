@@ -75,7 +75,11 @@ export default function ChickenHatchingDashboard() {
       }
       
       const data = await response.json();
-      setEnvironmentalData(data);
+      // Ensure timestamp is always present
+      setEnvironmentalData({
+        ...data,
+        timestamp: data.timestamp || new Date().toISOString()
+      });
     } catch (err) {
       console.error('Failed to load environmental data:', err);
       // Set default data if API fails
@@ -164,7 +168,7 @@ export default function ChickenHatchingDashboard() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <LoadingSpinner />
-          <p className="mt-4 text-gray-600">Loading Chicken Hatching Management System...</p>
+          <p className="mt-4 text-gray-600">Loading Chicken Vision Console...</p>
         </div>
       </div>
     );
@@ -179,45 +183,56 @@ export default function ChickenHatchingDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-      {/* Status Bar */}
-      <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex justify-between items-center py-3">
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <h2 className="text-lg font-semibold text-slate-900">
-                System Dashboard
-              </h2>
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-orange-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">🥚</span>
+                </div>
+                <div>
+                  <h1 className="text-lg font-semibold text-gray-900">Chicken Vision</h1>
+                  <p className="text-xs text-gray-500">AI Poultry Intelligence Console</p>
+                </div>
+              </div>
             </div>
             <div className="flex items-center space-x-6">
-              <div className="text-sm text-slate-500 font-medium">
+              <div className="text-sm text-gray-500 font-mono">
                 {environmentalData?.timestamp ? 
                   new Date(environmentalData.timestamp).toLocaleTimeString('en-US', {
                     hour12: false,
                     hour: '2-digit',
                     minute: '2-digit',
                     second: '2-digit'
-                  }) : 'Initializing...'}
+                  }) : new Date().toLocaleTimeString('en-US', {
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  })}
               </div>
               <div className="flex items-center space-x-2">
                 <div className={`w-2 h-2 rounded-full ${
                   environmentalData?.alerts && environmentalData.alerts.length === 0 
-                    ? 'bg-emerald-400 shadow-emerald-400/50' 
-                    : 'bg-red-400 shadow-red-400/50'
-                } shadow-lg animate-pulse`} />
-                <span className="text-xs font-medium text-slate-600">
-                  {environmentalData?.alerts && environmentalData.alerts.length === 0 ? 'Optimal' : 'Alert'}
+                    ? 'bg-green-500' 
+                    : 'bg-red-500'
+                }`} />
+                <span className="text-sm font-medium text-gray-700">
+                  {environmentalData?.alerts && environmentalData.alerts.length === 0 ? 'Healthy' : 'Alert'}
                 </span>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Navigation Tabs */}
-      <nav className="bg-white/60 backdrop-blur-xl border-b border-slate-200/60">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex space-x-1 py-2">
+      {/* Navigation */}
+      <nav className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex space-x-8 overflow-x-auto">
             {[
               { id: 'overview', label: 'Overview', icon: '📊' },
               { id: 'eggs', label: 'Registry', icon: '🥚' },
@@ -229,25 +244,19 @@ export default function ChickenHatchingDashboard() {
               <button
                 key={tab.id}
                 onClick={() => {
-                  console.log(`Switching to tab: ${tab.id}`);
                   setActiveTab(tab.id);
-                  // Load eggs when switching to eggs tab
                   if (tab.id === 'eggs') {
-                    console.log('Loading eggs for registry tab...');
                     loadEggs();
                   }
                 }}
-                className={`relative px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-300 ease-out ${
+                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors duration-200 ${
                   activeTab === tab.id
-                    ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/25 scale-105'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                    ? 'border-orange-500 text-orange-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <span className="mr-2 text-base">{tab.icon}</span>
-                <span className="font-semibold">{tab.label}</span>
-                {activeTab === tab.id && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl -z-10" />
-                )}
+                <span className="text-base">{tab.icon}</span>
+                <span>{tab.label}</span>
               </button>
             ))}
           </div>
@@ -257,17 +266,7 @@ export default function ChickenHatchingDashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
         {activeTab === 'overview' && <OverviewTab environmentalData={environmentalData} eggs={eggs} />}
-        {activeTab === 'eggs' && (
-          <div>
-            <div className="mb-4 p-4 bg-yellow-100 rounded-lg">
-              <p><strong>Debug Info:</strong></p>
-              <p>Eggs in state: {eggs.length}</p>
-              <p>API URL: {API_URL}</p>
-              <p>Mounted: {mounted ? 'Yes' : 'No'}</p>
-            </div>
-            <EggRegistryTab eggs={eggs} onRegisterEgg={registerNewEgg} onRefresh={loadEggs} />
-          </div>
-        )}
+        {activeTab === 'eggs' && <EggRegistryTab eggs={eggs} onRegisterEgg={registerNewEgg} onRefresh={loadEggs} />}
         {activeTab === 'environment' && <EnvironmentTab environmentalData={environmentalData} />}
         {activeTab === 'rotation' && <RotationTab eggs={eggs} />}
         {activeTab === 'predictions' && <PredictionsTab eggs={eggs} />}
@@ -519,9 +518,7 @@ function EggRegistryTab({ eggs, onRegisterEgg, onRefresh }: { eggs: Egg[], onReg
         </div>
       </div>
 
-      <div className="mb-4 text-sm text-gray-500">
-        Debug: {eggs.length} eggs in state
-      </div>
+
 
       {eggs.length === 0 ? (
         <EmptyState 
