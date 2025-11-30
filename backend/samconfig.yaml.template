@@ -10,7 +10,8 @@ dev:
         - project=stream-post-processor
       parameter_overrides: [
         "EnvironmentHash=$ENV_HASH",
-        "EnvironmentName=$ENV_NAME"
+        "EnvironmentName=$ENV_NAME",
+        "AMBAccessToken=$AMB_TOKEN"
       ]
   global:
     parameters:

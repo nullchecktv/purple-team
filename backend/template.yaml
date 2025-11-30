@@ -2,6 +2,11 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Hackathon backend infrastructure
 
+Parameters:
+  AMBAccessToken:
+    Type: String
+    Description: Amazon Managed Blockchain Access Token for Ethereum
+
 Metadata:
   esbuild-properties: &esbuild-properties
     Format: esm

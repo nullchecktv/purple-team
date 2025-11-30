@@ -30,10 +30,10 @@ jobs:
         with:
           aws-region: us-east-1
           role-to-assume: ${{ secrets.PIPELINE_EXECUTION_ROLE }}
-      
+
       - uses: actions/setup-python@v6
         with:
-          python-version: '3.13' 
+          python-version: '3.13'
 
       - name: Replace Variables in samconfig
         working-directory: backend
@@ -41,6 +41,7 @@ jobs:
           STACK_NAME: purple-team-backend-prod
           ENV_HASH: prod
           ENV_NAME: production
+          AMB_TOKEN: ac-7DG7SG3HHREPVPVSXJWIPVYWGQ
         run: |
           envsubst < samconfig.yaml.template > samconfig.yaml
           echo "Generated samconfig.yaml:"
