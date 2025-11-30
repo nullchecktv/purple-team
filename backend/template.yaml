@@ -30,7 +30,6 @@ Globals:
       Variables:
         AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
         TABLE_NAME: !Ref DataTable
-        API_URL: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com'
 
 Resources:
   HttpApi:
@@ -65,6 +64,83 @@ Resources:
           KeyType: HASH
         - AttributeName: sk
           KeyType: RANGE
+
+  # User Profile Functions
+  CreateProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.12
+      Handler: create.lambda_handler
+      CodeUri: functions/user-profile/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+              Resource: !GetAtt DataTable.Arn
+      Events:
+        CreateProfile:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /profile
+            Method: post
+
+  GetProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.12
+      Handler: get.lambda_handler
+      CodeUri: functions/user-profile/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+              Resource: !GetAtt DataTable.Arn
+      Events:
+        GetProfile:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /profile/{userId}
+            Method: get
+
+  UpdateProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.12
+      Handler: update.lambda_handler
+      CodeUri: functions/user-profile/
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+              Resource: !GetAtt DataTable.Arn
+      Events:
+        UpdateProfile:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /profile/{userId}
+            Method: put
+
+  # Tree Vendors Function
+  TreeVendorsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.12
+      Handler: get.lambda_handler
+      CodeUri: functions/tree-vendors/
+      Events:
+        GetVendors:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /tree-vendors
+            Method: get
 
 Outputs:
   ApiUrl:

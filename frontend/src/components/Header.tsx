@@ -23,6 +23,18 @@ export default function Header() {
             >
               Features
             </a>
+            <a
+              href="/profile"
+              className="hover:text-purple-200 transition-all duration-200 font-medium hover:scale-110 transform"
+            >
+              Profile
+            </a>
+            <a
+              href="/tree-vendors"
+              className="hover:text-purple-200 transition-all duration-200 font-medium hover:scale-110 transform flex items-center gap-1"
+            >
+              🎄 Tree Vendors
+            </a>
           </nav>
         </div>
       </div>
