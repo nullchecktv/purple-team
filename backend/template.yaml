@@ -49,6 +49,21 @@ Resources:
         AllowOrigins:
           - '*'
 
+  # S3 Bucket for egg images with EventBridge notifications
+  EggImagesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-egg-images-${AWS::AccountId}'
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # DynamoDB table for egg quality data
   DataTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Delete
@@ -66,6 +81,99 @@ Resources:
         - AttributeName: sk
           KeyType: RANGE
 
+  # EventBridge rule to trigger Lambda on S3 object creation
+  ImageUploadRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Trigger image processor when egg images are uploaded to S3
+      EventPattern:
+        source:
+          - aws.s3
+        detail-type:
+          - Object Created
+        detail:
+          bucket:
+            name:
+              - !Ref EggImagesBucket
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt ImageProcessorFunction.Arn
+          Id: ImageProcessorTarget
+
+  # Permission for EventBridge to invoke Image Processor Lambda
+  ImageProcessorEventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ImageProcessorFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ImageUploadRule.Arn
+
+  # Image Processor Lambda function
+  ImageProcessorFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - index.mjs
+    Properties:
+      Runtime: nodejs22.x
+      Handler: index.handler
+      CodeUri: functions/imageProcessor/
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref EggImagesBucket
+          BEDROCK_AGENT_ID: placeholder
+          BEDROCK_AGENT_ALIAS_ID: placeholder
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref EggImagesBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeAgent
+              Resource: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/*'
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/*'
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+
+  # Egg Data Tool Lambda function
+  EggDataToolFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - index.mjs
+    Properties:
+      Runtime: nodejs22.x
+      Handler: index.handler
+      CodeUri: functions/eggDataTool/
+      Timeout: 60
+      MemorySize: 256
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DataTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: '*'
+
 Outputs:
   ApiUrl:
     Description: HTTP API endpoint URL
@@ -73,3 +181,12 @@ Outputs:
   TableName:
     Description: DynamoDB table name
     Value: !Ref DataTable
+  EggImagesBucketName:
+    Description: S3 bucket for egg images
+    Value: !Ref EggImagesBucket
+  ImageProcessorFunctionArn:
+    Description: Image Processor Lambda function ARN
+    Value: !GetAtt ImageProcessorFunction.Arn
+  EggDataToolFunctionArn:
+    Description: Egg Data Tool Lambda function ARN
+    Value: !GetAtt EggDataToolFunction.Arn
