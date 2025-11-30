@@ -251,7 +251,7 @@ export default function ChickenHatchingDashboard() {
                 }}
                 className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap transition-colors duration-200 ${
                   activeTab === tab.id
-                    ? 'border-orange-500 text-orange-600'
+                    ? 'border-purple-500 text-purple-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -294,15 +294,15 @@ function OverviewTab({ environmentalData, eggs }: { environmentalData: Environme
           </div>
         </div>
 
-        <div className="group relative overflow-hidden bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 rounded-3xl p-6 shadow-2xl shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all duration-500 hover:scale-105">
+        <div className="group relative overflow-hidden bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 rounded-3xl p-6 shadow-2xl shadow-purple-500/20 hover:shadow-purple-500/30 transition-all duration-500 hover:scale-105">
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
           <div className="relative flex items-center justify-between">
             <div>
-              <p className="text-emerald-100 text-sm font-medium mb-1">Temperature</p>
+              <p className="text-purple-100 text-sm font-medium mb-1">Temperature</p>
               <p className="text-4xl font-bold text-white tracking-tight">
                 {environmentalData?.readings.temperature?.toFixed(1) || '37.5'}°
               </p>
-              <div className="w-12 h-1 bg-gradient-to-r from-emerald-200 to-emerald-300 rounded-full mt-3" />
+              <div className="w-12 h-1 bg-gradient-to-r from-purple-200 to-purple-300 rounded-full mt-3" />
             </div>
             <div className="text-5xl opacity-20 group-hover:opacity-30 transition-opacity duration-300">🌡️</div>
           </div>
@@ -322,13 +322,13 @@ function OverviewTab({ environmentalData, eggs }: { environmentalData: Environme
           </div>
         </div>
 
-        <div className="group relative overflow-hidden bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 rounded-3xl p-6 shadow-2xl shadow-amber-500/20 hover:shadow-amber-500/30 transition-all duration-500 hover:scale-105">
+        <div className="group relative overflow-hidden bg-gradient-to-br from-indigo-500 via-indigo-600 to-indigo-700 rounded-3xl p-6 shadow-2xl shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-all duration-500 hover:scale-105">
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
           <div className="relative flex items-center justify-between">
             <div>
-              <p className="text-amber-100 text-sm font-medium mb-1">Active Alerts</p>
+              <p className="text-indigo-100 text-sm font-medium mb-1">Active Alerts</p>
               <p className="text-4xl font-bold text-white tracking-tight">{environmentalData?.alerts?.length || 0}</p>
-              <div className="w-12 h-1 bg-gradient-to-r from-amber-200 to-amber-300 rounded-full mt-3" />
+              <div className="w-12 h-1 bg-gradient-to-r from-indigo-200 to-indigo-300 rounded-full mt-3" />
             </div>
             <div className="text-5xl opacity-20 group-hover:opacity-30 transition-opacity duration-300">⚠️</div>
           </div>
@@ -337,10 +337,10 @@ function OverviewTab({ environmentalData, eggs }: { environmentalData: Environme
 
       {/* System Status */}
       <Card className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent" />
         <div className="relative">
           <div className="flex items-center space-x-3 mb-6">
-            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center">
               <span className="text-white text-lg">🚀</span>
             </div>
             <h3 className="text-2xl font-bold text-slate-900">System Status</h3>
