@@ -184,7 +184,7 @@ Resources:
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
-              Resource: "*"
+              Resource: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*'
       Events:
         PredictHatch:
           Type: HttpApi
@@ -487,7 +487,7 @@ Resources:
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
-              Resource: '*'
+              Resource: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*'
             - Effect: Allow
               Action:
                 - dynamodb:PutItem
@@ -547,18 +547,21 @@ Resources:
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins: ['*']
-            AllowedMethods: [PUT, POST]
+            AllowedMethods: [PUT, POST, GET]
             AllowedHeaders: ['*']
             MaxAge: 3000
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: ObjectWriter
       PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
 
   GeneratePresignedUrlFunction:
     Type: AWS::Serverless::Function
