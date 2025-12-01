@@ -1,14 +1,15 @@
-# Design Document: Chick Image Generation
+# Design Document: Chick Media Generation
 
 ## Overview
 
-The Chick Image Generator extends the egg analysis pipeline to create photorealistic images of predicted chicks using Amazon Nova Canvas. When an egg record is updated with analysis results showing high hatch likelihood (>= 70%), the system generates an image based on the predicted breed and appearance characteristics, stores it in S3, and updates the DynamoDB record with the image location.
+The Chick Media Generator extends the egg analysis pipeline to create both photorealistic images and custom music for predicted chicks using Amazon Nova Canvas and ElevenLabs. When an egg record is updated with analysis results showing high hatch likelihood (>= 70%), the system generates an image based on the predicted breed and appearance characteristics, creates custom music that reflects the chick's personality and breed traits, stores both assets in S3, and updates the DynamoDB record with their locations.
 
 The architecture leverages the existing `AnalyzedEggQueue` and `AnalysisResultForwarder` infrastructure, adding a new Lambda function that:
 - Filters for high-likelihood eggs
 - Generates chick images via Nova Canvas
-- Stores images in S3
-- Updates DynamoDB with image URLs
+- Generates custom chick music via ElevenLabs
+- Stores both media assets in S3
+- Updates DynamoDB with media URLs
 
 ## Architecture
 
@@ -24,21 +25,24 @@ flowchart LR
         AEQ[AnalyzedEggQueue<br/>SQS]
     end
     
-    subgraph "Chick Image Generation"
-        CIG[ChickImageGenerator<br/>Lambda]
+    subgraph "Chick Media Generation"
+        CMG[ChickMediaGenerator<br/>Lambda]
         NC[Amazon Nova Canvas]
+        EL[ElevenLabs API]
         S3[ImageUploadBucket<br/>S3]
     end
     
     DT --> DS
     DS -->|FilterCriteria<br/>MODIFY + EGG# + hatchLikelihood in NEW<br/>+ hatchLikelihood NOT in OLD| ARF
     ARF --> AEQ
-    AEQ --> CIG
-    CIG -->|Check hatchLikelihood >= 70| CIG
-    CIG -->|Generate Image| NC
-    NC -->|Base64 Image| CIG
-    CIG -->|Upload PNG| S3
-    CIG -->|UpdateItem chickImageUrl| DT
+    AEQ --> CMG
+    CMG -->|Check hatchLikelihood >= 70| CMG
+    CMG -->|Generate Image| NC
+    CMG -->|Generate Music| EL
+    NC -->|Base64 Image| CMG
+    EL -->|Audio Data| CMG
+    CMG -->|Upload PNG & MP3| S3
+    CMG -->|UpdateItem URLs| DT
 ```
 
 **Key Filter Logic:** The AnalysisResultForwarder filter must ensure hatchLikelihood exists in NewImage but NOT in OldImage. This prevents re-triggering when we update the record with chickImageUrl.
@@ -67,9 +71,9 @@ The existing SQS queue that receives analyzed egg records from the AnalysisResul
 }
 ```
 
-### 2. ChickImageGenerator (Lambda)
+### 2. ChickMediaGenerator (Lambda)
 
-Node.js Lambda function that processes analyzed eggs and generates chick images.
+Node.js Lambda function that processes analyzed eggs and generates both chick images and custom music.
 
 **Interface:**
 ```typescript
@@ -90,18 +94,21 @@ interface ChickenAppearance {
   legColor: string;
 }
 
-interface ImageGenerationResult {
+interface MediaGenerationResult {
   success: boolean;
-  s3Key?: string;
-  s3Uri?: string;
+  imageS3Key?: string;
+  imageS3Uri?: string;
+  musicS3Key?: string;
+  musicS3Uri?: string;
   error?: string;
 }
 ```
 
 **Configuration:**
 - Runtime: nodejs22.x
-- Timeout: 60 seconds (image generation can take time)
-- Memory: 1024 MB (for image processing)
+- Timeout: 120 seconds (both image and music generation can take time)
+- Memory: 1024 MB (for media processing)
+- Environment Variables: ELEVENLABS_API_KEY
 
 ### 3. Nova Canvas Integration
 
@@ -137,27 +144,54 @@ Professional poultry photography style, high detail, adorable expression.
 }
 ```
 
-### 4. S3 Storage
+### 4. ElevenLabs Music Integration
 
-Uses the existing ImageUploadBucket for storing generated chick images.
+Uses ElevenLabs API for generating custom chick music based on breed characteristics.
 
-**Key Format:** `chicks/{pk}/{eggId}.png`
-- Example: `chicks/BATCH#2024-01-15/egg-001.png`
+**Music Description Construction:**
+```
+A cheerful and playful melody for a baby {predictedChickBreed} chick.
+The music should reflect the {bodyType} nature and {plumageColor} personality of this breed.
+{featherPattern} rhythmic patterns with a {combType} melodic structure.
+Warm, nurturing tones suitable for a farm setting with gentle {legColor} undertones.
+```
 
-**S3 URI Format:** `s3://{bucket}/chicks/{pk}/{eggId}.png`
+**API Request:**
+```javascript
+{
+  text: musicDescription,
+  duration_seconds: 15,
+  prompt_influence: 0.3,
+  style: "cheerful farm music"
+}
+```
 
-### 5. DynamoDB Update
+### 5. S3 Storage
 
-Updates the original egg record with image information.
+Uses the existing ImageUploadBucket for storing both generated chick images and music.
+
+**Key Formats:** 
+- Images: `chicks/{pk}/{eggId}.png`
+- Music: `chicks/{pk}/{eggId}.mp3`
+- Example: `chicks/BATCH#2024-01-15/egg-001.png` and `chicks/BATCH#2024-01-15/egg-001.mp3`
+
+**S3 URI Formats:** 
+- Images: `s3://{bucket}/chicks/{pk}/{eggId}.png`
+- Music: `s3://{bucket}/chicks/{pk}/{eggId}.mp3`
+
+### 6. DynamoDB Update
+
+Updates the original egg record with both image and music information.
 
 **Update Expression:**
 ```javascript
 {
   TableName: TABLE_NAME,
   Key: { pk, sk },
-  UpdateExpression: 'SET chickImageUrl = :url, chickImageGeneratedAt = :ts',
+  UpdateExpression: 'SET chickImageUrl = :imageUrl, chickMusicUrl = :musicUrl, mediaGeneratedAt = :ts',
   ExpressionAttributeValues: {
-    ':url': s3Uri,
+    ':imageUrl': imageS3Uri,
+    ':musicUrl': musicS3Uri,
     ':ts': new Date().toISOString()
   }
 }
@@ -205,7 +239,8 @@ Updates the original egg record with image information.
   },
   "analysisTimestamp": "2024-01-15T10:30:00Z",
   "chickImageUrl": "s3://hackathon-image-uploads-123456789/chicks/BATCH#2024-01-15/egg-001.png",
-  "chickImageGeneratedAt": "2024-01-15T10:31:00Z"
+  "chickMusicUrl": "s3://hackathon-image-uploads-123456789/chicks/BATCH#2024-01-15/egg-001.mp3",
+  "mediaGeneratedAt": "2024-01-15T10:31:00Z"
 }
 ```
 
@@ -213,41 +248,65 @@ Updates the original egg record with image information.
 
 *A property is a characteristic or behavior that should hold true across all valid executions of a system-essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
-### Property 1: High Likelihood Triggers Generation
+### Property 1: Hatch Likelihood Threshold Behavior
 
-*For any* egg record with hatchLikelihood >= 70, the shouldGenerateImage function SHALL return true.
+*For any* egg record, the shouldGenerateMedia function SHALL return true if and only if hatchLikelihood >= 70.
 
-**Validates: Requirements 1.1**
+**Validates: Requirements 1.1, 1.2**
 
-### Property 2: Low Likelihood Skips Generation
-
-*For any* egg record with hatchLikelihood < 70, the shouldGenerateImage function SHALL return false.
-
-**Validates: Requirements 1.2**
-
-### Property 3: Appearance Extraction
+### Property 2: Appearance Extraction
 
 *For any* valid egg record containing chickenAppearance and predictedChickBreed, the extractAppearance function SHALL return an object with all five appearance fields (plumageColor, combType, bodyType, featherPattern, legColor) and the breed.
 
 **Validates: Requirements 1.3**
 
-### Property 4: Prompt Contains All Characteristics
+### Property 3: Image Prompt Contains All Characteristics
 
-*For any* chicken appearance with predictedChickBreed, plumageColor, combType, bodyType, featherPattern, and legColor, the constructed prompt SHALL contain all six values as substrings.
+*For any* chicken appearance with predictedChickBreed, plumageColor, combType, bodyType, featherPattern, and legColor, the constructed image prompt SHALL contain all six values as substrings.
 
 **Validates: Requirements 2.1**
 
-### Property 5: S3 Path Construction
+### Property 4: Music Description Contains All Characteristics
 
-*For any* pk and eggId values, the constructed S3 key SHALL match the format "chicks/{pk}/{eggId}.png" and the S3 URI SHALL match "s3://{bucket}/chicks/{pk}/{eggId}.png".
+*For any* chicken appearance with predictedChickBreed and chickenAppearance characteristics, the constructed music description SHALL contain the breed name and all appearance characteristics as substrings.
 
-**Validates: Requirements 3.1, 3.3**
+**Validates: Requirements 3.1**
 
-### Property 6: Record Update Preserves Fields and Adds Image Data
+### Property 5: Music Request Parameters
 
-*For any* egg record and S3 URI, the update operation SHALL preserve all existing fields and add chickImageUrl equal to the S3 URI and chickImageGeneratedAt as a valid ISO timestamp.
+*For any* music generation request, the API call SHALL specify 15-second duration and include breed-appropriate style parameters.
 
-**Validates: Requirements 4.1, 4.2**
+**Validates: Requirements 3.2**
+
+### Property 6: S3 Key Construction for Images
+
+*For any* pk and eggId values, the constructed image S3 key SHALL match the format "chicks/{pk}/{eggId}.png".
+
+**Validates: Requirements 4.1**
+
+### Property 7: S3 Key Construction for Music
+
+*For any* pk and eggId values, the constructed music S3 key SHALL match the format "chicks/{pk}/{eggId}.mp3".
+
+**Validates: Requirements 4.2**
+
+### Property 8: Content Type Assignment
+
+*For any* file upload, the ContentType SHALL be "image/png" for .png files and "audio/mpeg" for .mp3 files.
+
+**Validates: Requirements 4.3**
+
+### Property 9: S3 URI Construction
+
+*For any* bucket name and S3 key, the constructed S3 URI SHALL match the format "s3://{bucket}/{key}".
+
+**Validates: Requirements 4.4**
+
+### Property 10: Record Update Preserves Fields and Adds Media Data
+
+*For any* egg record, image S3 URI, and music S3 URI, the update operation SHALL preserve all existing fields and add chickImageUrl, chickMusicUrl, and mediaGeneratedAt as a valid ISO timestamp.
+
+**Validates: Requirements 5.1, 5.2**
 
 ## Error Handling
 
@@ -256,9 +315,12 @@ Updates the original egg record with image information.
 | hatchLikelihood < 70 | Skip processing, log info, delete message |
 | Missing chickenAppearance | Use default appearance values, log warning |
 | Nova Canvas invocation failure | Log error, message returns to queue for retry |
-| Invalid Nova Canvas response | Log error, skip image generation |
-| S3 upload failure | Log error, message returns to queue for retry |
-| DynamoDB update failure | Log error, image exists in S3 but record not updated |
+| Invalid Nova Canvas response | Log error, skip image generation, continue with music |
+| ElevenLabs API failure | Log error, skip music generation, continue with image |
+| Invalid ElevenLabs response | Log error, skip music generation |
+| S3 upload failure (image) | Log error, message returns to queue for retry |
+| S3 upload failure (music) | Log error, continue with image-only update |
+| DynamoDB update failure | Log error, media exists in S3 but record not updated |
 
 ## Testing Strategy
 

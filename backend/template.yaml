@@ -6,6 +6,10 @@ Parameters:
   AMBAccessToken:
     Type: String
     Description: Amazon Managed Blockchain Access Token for Ethereum
+  ElevenLabsApiKey:
+    Type: String
+    Description: ElevenLabs API key for music generation
+    NoEcho: true
 
 Metadata:
   esbuild-properties: &esbuild-properties
@@ -532,7 +536,7 @@ Resources:
             BatchSize: 1
             FilterCriteria:
               Filters:
-                - Pattern: '{"eventName": ["MODIFY"], "dynamodb": {"NewImage": {"sk": {"S": [{"prefix": "EGG#"}]}, "hatchLikelihood": {"N": [{"exists": true}]}, "chickImageUrl": [{"exists": false}]}, "OldImage": {"hatchLikelihood": [{"exists": false}]}}}'
+                - Pattern: '{"eventName": ["MODIFY"], "dynamodb": {"NewImage": {"sk": {"S": [{"prefix": "EGG#"}]}, "hatchLikelihood": {"N": [{"exists": true}]}, "chickImageUrl": [{"exists": false}], "chickMusicUrl": [{"exists": false}]}, "OldImage": {"hatchLikelihood": [{"exists": false}]}}}'
 
   ImageUploadBucket:
     Type: AWS::S3::Bucket
@@ -590,7 +594,7 @@ Resources:
             Path: /upload/presigned-url
             Method: post
 
-  ChickImageGenerator:
+  ChickMediaGenerator:
     Type: AWS::Serverless::Function
     Metadata:
       BuildMethod: esbuild
@@ -601,12 +605,13 @@ Resources:
     Properties:
       Runtime: nodejs22.x
       Handler: index.handler
-      CodeUri: functions/chick-image-generator/
-      Timeout: 60
+      CodeUri: functions/chick-media-generator/
+      Timeout: 120
       MemorySize: 1024
       Environment:
         Variables:
           BUCKET_NAME: !Ref ImageUploadBucket
+          ELEVENLABS_API_KEY: !Ref ElevenLabsApiKey
       Policies:
         - Statement:
             - Effect: Allow
