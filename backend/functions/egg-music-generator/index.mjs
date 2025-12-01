@@ -6,7 +6,9 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { ElevenLabsClient, save } from '@elevenlabs/elevenlabs-js';
-import { readFileSync } from 'fs';
+// import { readFileSync } from 'fs';
+import path from 'path';
+import fs from 'fs'; // Standard Node.js file system module
 
 
 // Initialize clients
@@ -125,6 +127,28 @@ function validateEggAttributes(eggAttributes) {
   };
 }
 
+
+async function saveToTmp(buffer, filename) {
+  // 1. Construct the absolute path
+  // standard Lambda temp directory is always '/tmp'
+  const tempPath = path.join(filename);
+  
+  console.log(`💾 Saving ${buffer.length} bytes to ${tempPath}...`);
+
+  try {
+    // 2. Write the buffer to disk
+    await fs.promises.writeFile(tempPath, buffer);
+    console.log(`✅ File saved successfully: ${tempPath}`);
+    
+    // 3. Return the path so other functions (like ffmpeg or S3 upload) can use it
+    return tempPath;
+    
+  } catch (error) {
+    console.error(`❌ Failed to save file: ${error.message}`);
+    throw error;
+  }
+}
+
 /**
  * Invoke Bedrock to generate music prompt
  * @param {Object} eggAttributes - Egg attributes object
@@ -207,6 +231,8 @@ async function generateMusicWithElevenLabs(fullPrompt) {
     
     console.log('✅ Step 3: ElevenLabs music composition successful');
     
+
+    
     // Generate random filename
     const randomId = Math.random().toString(36).substring(7);
     const filename = `egg-music-${Date.now()}-${randomId}.mp3`;
@@ -215,8 +241,11 @@ async function generateMusicWithElevenLabs(fullPrompt) {
     console.log('💾 Step 4: Saving track to Lambda temp directory:', tempFilePath);
     
     // Save the track to Lambda's /tmp directory
-    await save(track, tempFilePath);
-    
+    // await save(track, tempFilePath);
+
+    // await track.saveFile(tempFilePath)
+    await saveToTmp(track,tempFilePath)
+
     console.log('✅ Step 5: Track saved successfully to:', tempFilePath);
     
     // Return the file path
@@ -242,51 +271,55 @@ async function generateMusicWithElevenLabs(fullPrompt) {
  * @param {string} eggId - Unique egg identifier
  * @returns {Promise<Object>} Object with key and publicUrl
  */
+
 async function uploadToS3(tempFilePath, eggId) {
-  console.log('📤 Step 1: Starting S3 upload from:', tempFilePath);
+  console.log('📤 Step 1: Preparing S3 upload for:', tempFilePath);
   
   try {
     const bucketName = process.env.S3_BUCKET_NAME;
-    if (!bucketName) {
-      throw new Error('S3_BUCKET_NAME environment variable not set');
-    }
+    if (!bucketName) throw new Error('S3_BUCKET_NAME environment variable not set');
+
+    // 1. USE A STREAM INSTEAD OF READFILE
+    // This is the most memory-efficient way to handle file uploads in Node.js
+    const fileStream = fs.createReadStream(tempFilePath);
     
-    console.log('📤 Step 2: Reading file from temp path');
-    const fileBuffer = readFileSync(tempFilePath);
-    console.log('📤 Step 3: File read successfully, size:', fileBuffer.length, 'bytes');
-    
+    // Check file stats just for logging (optional)
+    const stats = await fs.promises.stat(tempFilePath);
+    console.log(`📤 Step 2: Stream created. File size: ${stats.size} bytes`);
+
     const timestamp = Date.now();
     const key = `music/${timestamp}-${eggId}.mp3`;
     
-    console.log('📤 Step 4: Uploading to S3 bucket:', bucketName, 'key:', key);
+    console.log(`📤 Step 3: Uploading to bucket: ${bucketName} with key: ${key}`);
     
     const command = new PutObjectCommand({
       Bucket: bucketName,
       Key: key,
-      Body: fileBuffer,
-      ContentType: 'audio/mpeg',
-      ACL: 'public-read'
+      Body: fileStream,
+      ContentType: 'audio/mpeg'
+      // ACL removed - bucket policy handles public access
     });
     
     await s3Client.send(command);
-    console.log('✅ Step 5: S3 upload successful:', key);
+    console.log('✅ Step 4: S3 upload successful');
     
     const region = process.env.AWS_REGION || 'us-east-1';
     const publicUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${key}`;
     
-    console.log('✅ Step 6: Public URL generated:', publicUrl);
+    console.log('✅ Step 5: Public URL generated:', publicUrl);
     
     return { key, publicUrl };
     
   } catch (error) {
     console.error('❌ S3 upload failed:', error);
     
+    // Enhanced Error Handling
     if (error.name === 'NoSuchBucket') {
-      throw new Error('S3 bucket not configured');
+      throw new Error(`Bucket '${process.env.S3_BUCKET_NAME}' does not exist.`);
     } else if (error.name === 'AccessDenied') {
-      throw new Error('S3 permission error');
+      throw new Error('Permission Error: Check S3 "Block Public Access" settings or IAM role.');
     } else {
-      throw new Error(`Failed to upload to S3: ${error.message}`);
+      throw error;
     }
   }
 }

@@ -236,9 +236,8 @@ Resources:
                 # - !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.amazon.nova-*'
             - Effect: Allow
               Action:
-                - s3:PutObject
-                - s3:PutObjectAcl
-              Resource: !Sub '${MusicBucket.Arn}/*'
+                - s3:*
+              Resource: "*"
             - Effect: Allow
               Action:
                 - dynamodb:PutItem
