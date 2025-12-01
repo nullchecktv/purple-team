@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useRef, DragEvent, ChangeEvent } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface UploadState {
   uploading: boolean;
   progress: number;
   error: string | null;
   uploadedUrl: string | null;
+  clutchId: string | null;
   preview: string | null;
 }
 
@@ -14,11 +16,13 @@ const VALID_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
 export default function ImageUpload() {
+  const router = useRouter();
   const [state, setState] = useState<UploadState>({
     uploading: false,
     progress: 0,
     error: null,
     uploadedUrl: null,
+    clutchId: null,
     preview: null
   });
   const [isDragging, setIsDragging] = useState(false);
@@ -68,7 +72,7 @@ export default function ImageUpload() {
         throw new Error(errorData.error || 'Failed to get upload URL');
       }
 
-      const { presignedUrl, objectKey } = await response.json();
+      const { presignedUrl, objectKey, clutchId } = await response.json();
 
       // Upload to S3
       const uploadResponse = await fetch(presignedUrl, {
@@ -86,8 +90,16 @@ export default function ImageUpload() {
         uploading: false,
         progress: 100,
         uploadedUrl: objectKey,
+        clutchId,
         error: null
       }));
+
+      // Navigate to clutch results page after successful upload
+      if (clutchId) {
+        setTimeout(() => {
+          router.push(`/clutch/${clutchId}`);
+        }, 1500);
+      }
     } catch (err) {
       console.error('Upload error:', err);
       setState(prev => ({
@@ -136,6 +148,7 @@ export default function ImageUpload() {
       progress: 0,
       error: null,
       uploadedUrl: null,
+      clutchId: null,
       preview: null
     });
   };
@@ -176,6 +189,7 @@ export default function ImageUpload() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
             <p className="text-green-600 font-medium">Upload successful!</p>
+            <p className="text-sm text-gray-500">Redirecting to analysis...</p>
             {state.preview && (
               <img
                 src={state.preview}
@@ -183,15 +197,28 @@ export default function ImageUpload() {
                 className="max-w-full max-h-64 mx-auto rounded-lg shadow-md"
               />
             )}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRetry();
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-            >
-              Upload Another
-            </button>
+            <div className="flex space-x-3 justify-center">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (state.clutchId) {
+                    router.push(`/clutch/${state.clutchId}`);
+                  }
+                }}
+                className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors duration-200"
+              >
+                View Results
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRetry();
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors duration-200"
+              >
+                Upload Another
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
