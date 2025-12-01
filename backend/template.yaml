@@ -682,6 +682,43 @@ Resources:
             Path: /clutches/{id}
             Method: get
 
+  MusicGenerationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.13
+      Handler: app.lambda_handler
+      CodeUri: functions/music-generation/
+      Timeout: 120
+      MemorySize: 1024
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref ImageUploadBucket
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:Query
+              Resource: !GetAtt DataTable.Arn
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+              Resource: !Sub '${ImageUploadBucket.Arn}/*'
+      Events:
+        GenerateMusic:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/music/generate
+            Method: post
+        GetMusicForEgg:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/music/egg/{eggId}
+            Method: get
+
 Outputs:
   ApiUrl:
     Description: HTTP API endpoint URL

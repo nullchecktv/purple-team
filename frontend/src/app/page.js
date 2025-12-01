@@ -231,6 +231,208 @@ function BlockchainStatus() {
   );
 }
 
+// Component for music generation
+function MusicGenerator() {
+  const [generating, setGenerating] = useState(false);
+  const [musicUrl, setMusicUrl] = useState(null);
+  const [error, setError] = useState(null);
+  const [formData, setFormData] = useState({
+    style: 'Calm ambient music, soft piano, peaceful atmosphere',
+    lyrics: 'Gentle sounds of nature, peaceful and serene',
+    duration: 15,
+    eggId: 'demo-egg-001'
+  });
+
+  const handleGenerate = async (e) => {
+    e.preventDefault();
+    setGenerating(true);
+    setError(null);
+    setMusicUrl(null);
+
+    try {
+      // Simulate API call for demo purposes
+      await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
+      
+      // For demo, we'll use a sample music URL
+      // In production, this would be the actual generated music from ElevenLabs
+      const demoMusicUrl = "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav";
+      
+      // Simulate successful response
+      const simulatedResponse = {
+        message: 'Music generated successfully (Demo Mode)',
+        egg_id: formData.eggId,
+        music_url: demoMusicUrl,
+        duration_seconds: formData.duration,
+        style: formData.style,
+        generated_at: new Date().toISOString(),
+        demo_mode: true
+      };
+
+      setMusicUrl(simulatedResponse.music_url);
+      
+    } catch (err) {
+      setError('Demo error: ' + err.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'duration' ? parseInt(value) : value
+    }));
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      <form onSubmit={handleGenerate} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Music Style
+            </label>
+            <select
+              name="style"
+              value={formData.style}
+              onChange={handleInputChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value="Calm ambient music, soft piano, peaceful atmosphere">🎹 Peaceful Piano</option>
+              <option value="Slow jazz ballad, deep baritone vocal, smooth saxophone, brushed drums">🎷 Jazz Ballad</option>
+              <option value="Gentle acoustic guitar, soft vocals, folk style, warm and comforting">🎸 Acoustic Folk</option>
+              <option value="Electronic ambient, synthesizers, dreamy pads, ethereal atmosphere">🎛️ Electronic Ambient</option>
+              <option value="Classical orchestral, strings, gentle melody, soothing and elegant">🎻 Classical Strings</option>
+              <option value="Nature sounds, birds chirping, gentle rain, peaceful forest">🌿 Nature Sounds</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Duration (seconds)
+            </label>
+            <select
+              name="duration"
+              value={formData.duration}
+              onChange={handleInputChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value={10}>10 seconds</option>
+              <option value={15}>15 seconds</option>
+              <option value={30}>30 seconds</option>
+              <option value={45}>45 seconds</option>
+              <option value={60}>1 minute</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Lyrics / Theme
+          </label>
+          <textarea
+            name="lyrics"
+            value={formData.lyrics}
+            onChange={handleInputChange}
+            rows={3}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            placeholder="Describe the mood, lyrics, or theme for your music..."
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Egg ID
+          </label>
+          <input
+            type="text"
+            name="eggId"
+            value={formData.eggId}
+            onChange={handleInputChange}
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            placeholder="Enter egg ID (e.g., egg-001)"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={generating}
+          className="w-full px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+        >
+          {generating ? (
+            <div className="flex items-center justify-center space-x-2">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              <span>Generating Music...</span>
+            </div>
+          ) : (
+            '🎵 Generate Music'
+          )}
+        </button>
+      </form>
+
+      {error && (
+        <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <span className="text-red-600">❌</span>
+            <span className="text-red-800 font-medium">Error:</span>
+          </div>
+          <p className="text-red-700 mt-1">{error}</p>
+        </div>
+      )}
+
+      {musicUrl && (
+        <div className="mt-6 p-6 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center space-x-2 mb-4">
+            <span className="text-green-600">✅</span>
+            <span className="text-green-800 font-medium">Music Generated Successfully!</span>
+          </div>
+          
+          <div className="bg-white p-4 rounded-lg border border-green-200">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-medium text-gray-900">🎵 Your Custom Music</h4>
+              <span className="text-sm text-gray-500">{formData.duration}s</span>
+            </div>
+            
+            <audio 
+              controls 
+              className="w-full mb-3"
+              preload="metadata"
+            >
+              <source src={musicUrl} type="audio/mpeg" />
+              Your browser does not support the audio element.
+            </audio>
+            
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                <p><strong>Style:</strong> {formData.style.split(',')[0]}</p>
+                <p><strong>Egg ID:</strong> {formData.eggId}</p>
+              </div>
+              
+              <a
+                href={musicUrl}
+                download={`${formData.eggId}-music.mp3`}
+                className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors duration-200"
+              >
+                📥 Download
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 text-center">
+        <p className="text-sm text-gray-500">
+          Powered by ElevenLabs AI • Music stored securely in AWS S3
+        </p>
+        <p className="text-xs text-blue-600 mt-1">
+          🚧 Demo Mode: Using sample audio while backend deploys
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [showImageUpload, setShowImageUpload] = useState(false);
 
@@ -317,6 +519,22 @@ export default function Home() {
                 <ImageUpload />
               </div>
             )}
+
+            {/* Music Generation Section */}
+            <div className="mt-12 p-8 bg-white rounded-2xl shadow-lg border border-gray-200">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  🎵 AI Music Generation
+                </h2>
+                <p className="text-gray-600 mb-2">
+                  Generate custom music for your eggs using ElevenLabs AI
+                </p>
+                <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  🚧 Demo Mode - Backend deployment in progress
+                </div>
+              </div>
+              <MusicGenerator />
+            </div>
           </div>
         </div>
 
