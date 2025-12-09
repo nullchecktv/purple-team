@@ -10,6 +10,11 @@ Parameters:
       - "true"
       - "false"
     Description: Enable blockchain functionality with automated AMB Access provisioning
+  ElevenLabsApiKey:
+    Type: String
+    Default: ""
+    Description: Optional ElevenLabs API key for comfort song music generation (leave empty to skip music generation)
+    NoEcho: true
 
 Conditions:
   DeployBlockchainIsTrue: !Equals [!Ref DeployBlockchain, "true"]
@@ -236,6 +241,23 @@ Resources:
       QueueName: !Sub '${AWS::StackName}-analyzed-egg-queue'
       VisibilityTimeout: 120
 
+  # Non-viable egg queue infrastructure
+  NonViableEggQueueDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${AWS::StackName}-non-viable-egg-dlq'
+      MessageRetentionPeriod: 1209600
+
+  NonViableEggQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${AWS::StackName}-non-viable-egg-queue'
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 120
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt NonViableEggQueueDLQ.Arn
+        maxReceiveCount: 3
+
   AnalysisResultForwarder:
     Type: AWS::Serverless::Function
     Metadata:
@@ -249,12 +271,15 @@ Resources:
       Environment:
         Variables:
           QUEUE_URL: !Ref AnalyzedEggQueue
+          NON_VIABLE_QUEUE_URL: !Ref NonViableEggQueue
       Policies:
         - Statement:
             - Effect: Allow
               Action:
                 - sqs:SendMessage
-              Resource: !GetAtt AnalyzedEggQueue.Arn
+              Resource:
+                - !GetAtt AnalyzedEggQueue.Arn
+                - !GetAtt NonViableEggQueue.Arn
       Events:
         DynamoDBStream:
           Type: DynamoDB
@@ -371,6 +396,49 @@ Resources:
           Type: SQS
           Properties:
             Queue: !GetAtt AnalyzedEggQueue.Arn
+            BatchSize: 1
+
+  ComfortSongAgent:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - agents/comfort-song-generator.mjs
+    Properties:
+      Handler: agents/comfort-song-generator.handler
+      Timeout: 300
+      MemorySize: 1024
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref ImageUploadBucket
+          ELEVENLABS_API_KEY: !Ref ElevenLabsApiKey
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+              Resource: !Sub '${ImageUploadBucket.Arn}/*'
+            - Effect: Allow
+              Action:
+                - dynamodb:UpdateItem
+              Resource: !GetAtt DataTable.Arn
+            - Effect: Allow
+              Action:
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+              Resource: !GetAtt NonViableEggQueue.Arn
+            - Effect: Allow
+              Action:
+                - events:PutEvents
+              Resource: '*'
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt NonViableEggQueue.Arn
             BatchSize: 1
 
   ListClutchesFunction:

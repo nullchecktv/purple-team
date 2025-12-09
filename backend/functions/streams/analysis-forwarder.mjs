@@ -2,7 +2,8 @@ import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 
 const sqs = new SQSClient({});
-const QUEUE_URL = process.env.QUEUE_URL;
+const CHICK_QUEUE_URL = process.env.QUEUE_URL;
+const NON_VIABLE_QUEUE_URL = process.env.NON_VIABLE_QUEUE_URL;
 
 export const handler = async (event) => {
   for (const record of event.Records) {
@@ -10,16 +11,16 @@ export const handler = async (event) => {
       const newImage = record.dynamodb.NewImage;
       const item = unmarshall(newImage);
 
-      // Only forward if hatchLikelihood exists AND chickImageUrl doesn't exist yet
-      if (item.hatchLikelihood !== undefined && !item.chickImageUrl) {
+      if (item.hatchLikelihood !== undefined && !item.chickImageUrl && !item.comfortSongKey) {
+        const targetQueue = item.hatchLikelihood < 50 ? NON_VIABLE_QUEUE_URL : CHICK_QUEUE_URL;
+        const queueType = item.hatchLikelihood < 50 ? 'non-viable' : 'chick-image';
+
         await sqs.send(new SendMessageCommand({
-          QueueUrl: QUEUE_URL,
+          QueueUrl: targetQueue,
           MessageBody: JSON.stringify(item)
         }));
 
-        console.log('Forwarded analyzed egg to queue:', item.sk, 'Hatch likelihood:', item.hatchLikelihood);
-      } else if (item.chickImageUrl) {
-        console.log('Skipping - already has chickImageUrl:', item.sk);
+        console.log(`Routed egg ${item.sk} to ${queueType} queue (hatchLikelihood: ${item.hatchLikelihood})`);
       }
     }
   }
