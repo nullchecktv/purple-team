@@ -142,7 +142,7 @@ function EnvironmentData() {
           <div className="text-xs text-green-600">✓ Normal</div>
         </div>
       </div>
-      
+
       <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
         <div>
           <div className="font-medium text-sm">Humidity</div>
@@ -211,7 +211,7 @@ function BlockchainStatus() {
           {blockchain.ethereum_network?.status || 'Unknown'}
         </div>
       </div>
-      
+
       <div className="text-center p-4 bg-gray-50 rounded-lg">
         <div className="text-2xl font-bold text-blue-600">
           {blockchain.ethereum_network?.current_block || 'N/A'}
@@ -263,8 +263,8 @@ function MusicGenerator() {
 
       if (response.ok) {
         // Convert relative URL to absolute URL for the local server
-        const musicUrl = data.music_url.startsWith('/') 
-          ? `http://localhost:8000${data.music_url}` 
+        const musicUrl = data.music_url.startsWith('/')
+          ? `http://localhost:8000${data.music_url}`
           : data.music_url;
         setMusicUrl(musicUrl);
       } else {
@@ -387,29 +387,29 @@ function MusicGenerator() {
             <span className="text-green-600">✅</span>
             <span className="text-green-800 font-medium">Music Generated Successfully!</span>
           </div>
-          
+
           <div className="bg-white p-4 rounded-lg border border-green-200">
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-medium text-gray-900">🎵 Your Custom Music</h4>
               <span className="text-sm text-gray-500">{formData.duration}s</span>
             </div>
-            
-            <audio 
-              controls 
+
+            <audio
+              controls
               className="w-full mb-3"
               preload="metadata"
             >
               <source src={musicUrl} type="audio/mpeg" />
               Your browser does not support the audio element.
             </audio>
-            
+
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-600">
                 <p><strong>Style:</strong> {formData.style.split(',')[0]}</p>
                 <p><strong>Egg ID:</strong> {formData.eggId}</p>
                 <p><strong>Requested Duration:</strong> {formData.duration} seconds</p>
               </div>
-              
+
               <a
                 href={musicUrl}
                 download={`${formData.eggId}-music.mp3`}
@@ -453,12 +453,7 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <a 
-                href="/dashboard"
-                className="px-4 py-2 text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors"
-              >
-                Console
-              </a>
+              {/* Dashboard removed - focusing on core workflow */}
             </div>
           </div>
         </div>
@@ -471,27 +466,21 @@ export default function Home() {
             <div className="w-20 h-20 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-8">
               <span className="text-white text-3xl">🐣</span>
             </div>
-            
+
             <h1 className="text-5xl font-bold text-gray-900 mb-6 tracking-tight">
               Chicken Vision
             </h1>
-            
+
             <p className="text-xl text-gray-600 mb-12 leading-relaxed">
               AI-powered chicken surveillance meets blockchain egg certificates!
               <br />
               Because apparently even chickens need crypto now. 🤖🐔⛓️
             </p>
-            
+
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-              <a 
-                href="/dashboard"
-                className="px-8 py-4 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-              >
-                Launch Console
-              </a>
               <button
                 onClick={() => setShowImageUpload(!showImageUpload)}
-                className="px-8 py-4 bg-white text-gray-900 font-semibold rounded-xl border border-gray-300 hover:border-gray-400 transition-all duration-200 shadow-sm hover:shadow-md"
+                className="px-8 py-4 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
                 Upload Egg Image
               </button>
@@ -549,7 +538,7 @@ export default function Home() {
               Leveraging enterprise-grade AWS services for reliability and scale
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
@@ -611,7 +600,7 @@ export default function Home() {
               Real-time data from our production Chicken Vision system
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
             {/* Clutch Data */}
             <div className="bg-white p-6 rounded-xl border border-gray-200">
@@ -702,17 +691,17 @@ export default function Home() {
               Ready to get started?
             </h2>
             <p className="text-lg text-gray-600 mb-8">
-              Launch the management console to begin monitoring your chicken hatching operations.
+              Upload an egg image to begin AI-powered analysis and chick generation.
             </p>
-            <a 
-              href="/dashboard"
+            <button
+              onClick={() => setShowImageUpload(true)}
               className="inline-flex items-center px-8 py-4 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
             >
-              Launch Console
+              Upload Egg Image
               <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
-            </a>
+            </button>
           </div>
         </div>
       </main>

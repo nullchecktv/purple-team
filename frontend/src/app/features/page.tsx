@@ -101,7 +101,7 @@ export default function Features() {
               href="/"
               className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold rounded-2xl shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 transition-all duration-300 hover:scale-105"
             >
-              Launch Dashboard
+              Get Started
               <span className="ml-2 text-xl">🚀</span>
             </a>
           </div>
