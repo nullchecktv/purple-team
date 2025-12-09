@@ -18,13 +18,13 @@ export default function Header() {
               </span>
             </div>
           </Link>
-          
+
           <nav className="flex items-center gap-2">
             <Link
               href="/"
               className="px-4 py-2 rounded-xl font-medium transition-all duration-300 hover:bg-slate-700/50 hover:text-blue-300"
             >
-              Dashboard
+              Home
             </Link>
             <Link
               href="/features"

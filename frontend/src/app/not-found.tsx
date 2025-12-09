@@ -10,7 +10,7 @@ export default function NotFound() {
           Page Not Found
         </h2>
         <p className="text-slate-600 mb-6">
-          This page seems to have wandered off like a free-range chicken. 
+          This page seems to have wandered off like a free-range chicken.
           Let's get you back to the coop!
         </p>
         <div className="space-y-3">
@@ -19,12 +19,6 @@ export default function NotFound() {
             className="block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-2xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 transform"
           >
             🏠 Go Home
-          </Link>
-          <Link
-            href="/dashboard"
-            className="block px-6 py-3 border border-slate-300 text-slate-700 font-semibold rounded-2xl hover:bg-slate-50 transition-all duration-300"
-          >
-            🚀 Launch Dashboard
           </Link>
         </div>
       </div>

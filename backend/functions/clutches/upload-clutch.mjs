@@ -41,8 +41,8 @@ export const handler = async (event) => {
     }
 
     const clutchId = randomUUID();
-    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const objectKey = `clutches/${clutchId}/${sanitizedFileName}`;
+    const extension = fileName.split('.').pop().toLowerCase();
+    const objectKey = `clutches/${clutchId}/upload.${extension}`;
     const uploadTimestamp = new Date().toISOString();
 
     await ddb.send(new PutCommand({

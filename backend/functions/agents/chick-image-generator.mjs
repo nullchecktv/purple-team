@@ -3,7 +3,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
-import { recordToBlockchain } from '../shared/blockchain-utils.mjs';
+import { recordToBlockchain } from '../utils/blockchain.mjs';
 
 const bedrock = new BedrockRuntimeClient({});
 const s3 = new S3Client({});
