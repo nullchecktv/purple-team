@@ -481,6 +481,10 @@ Resources:
       Handler: index.handler
       CodeUri: functions/egg-analysis-agent/
       Timeout: 60
+      Environment:
+        Variables:
+          AMB_ETHEREUM_ENDPOINT: !Sub 'https://ethereum-mainnet.managedblockchain.${AWS::Region}.amazonaws.com'
+          AMB_ACCESS_TOKEN: !Ref AMBAccessToken
       Policies:
         - Statement:
             - Effect: Allow
@@ -491,6 +495,10 @@ Resources:
               Action:
                 - dynamodb:PutItem
               Resource: !GetAtt DataTable.Arn
+            - Effect: Allow
+              Action:
+                - managedblockchain:*
+              Resource: '*'
       Events:
         SQSEvent:
           Type: SQS
@@ -611,6 +619,8 @@ Resources:
         Variables:
           BUCKET_NAME: !Ref ImageUploadBucket
           ELEVENLABS_API_KEY: !Ref ElevenLabsApiKey
+          AMB_ETHEREUM_ENDPOINT: !Sub 'https://ethereum-mainnet.managedblockchain.${AWS::Region}.amazonaws.com'
+          AMB_ACCESS_TOKEN: !Ref AMBAccessToken
       Policies:
         - Statement:
             - Effect: Allow
@@ -625,6 +635,14 @@ Resources:
               Action:
                 - dynamodb:UpdateItem
               Resource: !GetAtt DataTable.Arn
+            - Effect: Allow
+              Action:
+                - events:PutEvents
+              Resource: '*'
+            - Effect: Allow
+              Action:
+                - managedblockchain:*
+              Resource: '*'
       Events:
         SQSEvent:
           Type: SQS
@@ -697,6 +715,8 @@ Resources:
       Environment:
         Variables:
           BUCKET_NAME: !Ref ImageUploadBucket
+          AMB_ETHEREUM_ENDPOINT: !Sub 'https://ethereum-mainnet.managedblockchain.${AWS::Region}.amazonaws.com'
+          AMB_ACCESS_TOKEN: !Ref AMBAccessToken
       Policies:
         - Statement:
             - Effect: Allow
@@ -709,6 +729,10 @@ Resources:
                 - s3:PutObject
                 - s3:GetObject
               Resource: !Sub '${ImageUploadBucket.Arn}/*'
+            - Effect: Allow
+              Action:
+                - managedblockchain:*
+              Resource: '*'
       Events:
         GenerateMusic:
           Type: HttpApi

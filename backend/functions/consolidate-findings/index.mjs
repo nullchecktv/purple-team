@@ -2,6 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { recordToBlockchain } from '../shared/blockchain-utils.mjs';
 
 const ddbClient = new DynamoDBClient({});
 const ddb = DynamoDBDocumentClient.from(ddbClient);
@@ -44,13 +45,26 @@ export const handler = async (event) => {
       }
     }
 
-    await updateClutchRecord(clutchId, totalEggCount, viableEggCount, chickenImageKey);
+    // Record to blockchain (non-blocking)
+    let blockchainTx = null;
+    try {
+      blockchainTx = await recordToBlockchain(clutchId, 'CLUTCH_CONSOLIDATED', {
+        totalEggCount,
+        viableEggCount,
+        chickenImageKey
+      });
+    } catch (err) {
+      console.error('Blockchain recording failed for consolidation:', err.message);
+    }
+
+    await updateClutchRecord(clutchId, totalEggCount, viableEggCount, chickenImageKey, blockchainTx);
 
     return {
       clutchId,
       totalEggCount,
       viableEggCount,
-      chickenImageKey
+      chickenImageKey,
+      blockchainTxId: blockchainTx?.transactionId || null
     };
   } catch (err) {
     console.error('Consolidation failed:', err);
@@ -161,8 +175,24 @@ async function storeImageInS3(clutchId, imageBytes) {
   return key;
 }
 
-async function updateClutchRecord(clutchId, totalEggCount, viableEggCount, chickenImageKey) {
+async function updateClutchRecord(clutchId, totalEggCount, viableEggCount, chickenImageKey, blockchainTx) {
   const consolidatedAt = new Date().toISOString();
+
+  const updateExpression = blockchainTx
+    ? 'SET totalEggCount = :total, viableEggCount = :viable, chickenImageKey = :imageKey, consolidatedAt = :consolidatedAt, consolidationBlockchainTxId = :txId, consolidationBlockchainHash = :txHash'
+    : 'SET totalEggCount = :total, viableEggCount = :viable, chickenImageKey = :imageKey, consolidatedAt = :consolidatedAt';
+
+  const expressionValues = {
+    ':total': totalEggCount,
+    ':viable': viableEggCount,
+    ':imageKey': chickenImageKey,
+    ':consolidatedAt': consolidatedAt
+  };
+
+  if (blockchainTx) {
+    expressionValues[':txId'] = blockchainTx.transactionId;
+    expressionValues[':txHash'] = blockchainTx.transactionHash;
+  }
 
   await ddb.send(new UpdateCommand({
     TableName: TABLE_NAME,
@@ -170,12 +200,7 @@ async function updateClutchRecord(clutchId, totalEggCount, viableEggCount, chick
       pk: `CLUTCH#${clutchId}`,
       sk: 'METADATA'
     },
-    UpdateExpression: 'SET totalEggCount = :total, viableEggCount = :viable, chickenImageKey = :imageKey, consolidatedAt = :consolidatedAt',
-    ExpressionAttributeValues: {
-      ':total': totalEggCount,
-      ':viable': viableEggCount,
-      ':imageKey': chickenImageKey,
-      ':consolidatedAt': consolidatedAt
-    }
+    UpdateExpression: updateExpression,
+    ExpressionAttributeValues: expressionValues
   }));
 }

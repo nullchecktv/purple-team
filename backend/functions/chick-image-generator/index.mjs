@@ -3,6 +3,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
+import { recordToBlockchain } from '../shared/blockchain-utils.mjs';
 
 const bedrock = new BedrockRuntimeClient({});
 const s3 = new S3Client({});
@@ -47,8 +48,21 @@ export const handler = async (event) => {
       const s3Uri = `s3://${BUCKET_NAME}/${s3Key}`;
       console.log(`Uploaded chick image to ${s3Uri}`);
 
+      // Record to blockchain (non-blocking)
+      let blockchainTx = null;
+      try {
+        blockchainTx = await recordToBlockchain(eggId, 'CHICK_IMAGE_GENERATED', {
+          clutchId: pk.replace('CLUTCH#', ''),
+          s3Key,
+          predictedChickBreed,
+          hatchLikelihood
+        });
+      } catch (err) {
+        console.error('Blockchain recording failed for image generation:', err.message);
+      }
+
       // Update DynamoDB record
-      await updateRecord(pk, sk, s3Uri);
+      await updateRecord(pk, sk, s3Uri, blockchainTx);
       console.log(`Updated egg record ${eggId} with chickImageUrl`);
 
       // Fire Egg Processing Completed event
@@ -125,14 +139,25 @@ async function uploadToS3(key, base64Image) {
   }));
 }
 
-async function updateRecord(pk, sk, s3Uri) {
+async function updateRecord(pk, sk, s3Uri, blockchainTx) {
+  const updateExpression = blockchainTx
+    ? 'SET chickImageUrl = :url, chickImageGeneratedAt = :ts, imageBlockchainTxId = :txId, imageBlockchainHash = :txHash'
+    : 'SET chickImageUrl = :url, chickImageGeneratedAt = :ts';
+
+  const expressionValues = {
+    ':url': s3Uri,
+    ':ts': new Date().toISOString()
+  };
+
+  if (blockchainTx) {
+    expressionValues[':txId'] = blockchainTx.transactionId;
+    expressionValues[':txHash'] = blockchainTx.transactionHash;
+  }
+
   await ddb.send(new UpdateCommand({
     TableName: TABLE_NAME,
     Key: { pk, sk },
-    UpdateExpression: 'SET chickImageUrl = :url, chickImageGeneratedAt = :ts',
-    ExpressionAttributeValues: {
-      ':url': s3Uri,
-      ':ts': new Date().toISOString()
-    }
+    UpdateExpression: updateExpression,
+    ExpressionAttributeValues: expressionValues
   }));
 }

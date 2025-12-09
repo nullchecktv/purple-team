@@ -1,6 +1,7 @@
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { recordToBlockchain } from '../shared/blockchain-utils.mjs';
 
 const bedrock = new BedrockRuntimeClient({});
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
@@ -64,6 +65,19 @@ async function handleSaveEggAnalysis(toolInput, eggRecord, eggId, clutchId) {
     hatchLikelihood: Math.max(0, Math.min(100, toolInput.hatchLikelihood || 50))
   };
 
+  // Record to blockchain (non-blocking)
+  let blockchainTx = null;
+  try {
+    blockchainTx = await recordToBlockchain(eggId, 'EGG_ANALYSIS_COMPLETE', {
+      clutchId,
+      hatchLikelihood: analysis.hatchLikelihood,
+      predictedChickBreed: analysis.predictedChickBreed,
+      breedConfidence: analysis.breedConfidence
+    });
+  } catch (err) {
+    console.error('Blockchain recording failed for egg analysis:', err.message);
+  }
+
   // Build the updated record with clutch key pattern
   const updatedRecord = {
     ...eggRecord,
@@ -72,7 +86,11 @@ async function handleSaveEggAnalysis(toolInput, eggRecord, eggId, clutchId) {
     sk: `EGG#${eggId}`,
     id: eggId,
     clutchId: clutchId || null,
-    analysisTimestamp: new Date().toISOString()
+    analysisTimestamp: new Date().toISOString(),
+    ...(blockchainTx && {
+      analysisBlockchainTxId: blockchainTx.transactionId,
+      analysisBlockchainHash: blockchainTx.transactionHash
+    })
   };
 
   await ddb.send(new PutCommand({
@@ -83,7 +101,8 @@ async function handleSaveEggAnalysis(toolInput, eggRecord, eggId, clutchId) {
   return {
     success: true,
     message: `Analysis saved for egg ${eggId}`,
-    hatchLikelihood: analysis.hatchLikelihood
+    hatchLikelihood: analysis.hatchLikelihood,
+    blockchainTxId: blockchainTx?.transactionId || null
   };
 }
 
