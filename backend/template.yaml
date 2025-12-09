@@ -3,9 +3,16 @@ Transform: AWS::Serverless-2016-10-31
 Description: Hackathon backend infrastructure
 
 Parameters:
-  AMBAccessToken:
+  DeployBlockchain:
     Type: String
-    Description: Amazon Managed Blockchain Access Token for Ethereum
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Enable blockchain functionality with automated AMB Access provisioning
+
+Conditions:
+  DeployBlockchainIsTrue: !Equals [!Ref DeployBlockchain, "true"]
 
 Metadata:
   esbuild-properties: &esbuild-properties
@@ -38,6 +45,13 @@ Globals:
         TABLE_NAME: !Ref DataTable
 
 Resources:
+  AMBAccessor:
+    Type: AWS::ManagedBlockchain::Accessor
+    Condition: DeployBlockchainIsTrue
+    Properties:
+      AccessorType: BILLING_TOKEN
+      NetworkType: POLYGON_MAINNET
+
   HttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -186,8 +200,14 @@ Resources:
       Timeout: 60
       Environment:
         Variables:
-          AMB_ETHEREUM_ENDPOINT: !Sub 'https://ethereum-mainnet.managedblockchain.${AWS::Region}.amazonaws.com'
-          AMB_ACCESS_TOKEN: !Ref AMBAccessToken
+          AMB_ACCESS_TOKEN: !If
+            - DeployBlockchainIsTrue
+            - !GetAtt AMBAccessor.BillingToken
+            - !Ref AWS::NoValue
+          AMB_ENDPOINT: !If
+            - DeployBlockchainIsTrue
+            - !Sub 'https://polygon-mainnet.managedblockchain.${AWS::Region}.amazonaws.com'
+            - !Ref AWS::NoValue
       Policies:
         - Statement:
             - Effect: Allow
@@ -316,8 +336,14 @@ Resources:
       Environment:
         Variables:
           BUCKET_NAME: !Ref ImageUploadBucket
-          AMB_ETHEREUM_ENDPOINT: !Sub 'https://ethereum-mainnet.managedblockchain.${AWS::Region}.amazonaws.com'
-          AMB_ACCESS_TOKEN: !Ref AMBAccessToken
+          AMB_ACCESS_TOKEN: !If
+            - DeployBlockchainIsTrue
+            - !GetAtt AMBAccessor.BillingToken
+            - !Ref AWS::NoValue
+          AMB_ENDPOINT: !If
+            - DeployBlockchainIsTrue
+            - !Sub 'https://polygon-mainnet.managedblockchain.${AWS::Region}.amazonaws.com'
+            - !Ref AWS::NoValue
       Policies:
         - Statement:
             - Effect: Allow

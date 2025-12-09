@@ -1,9 +1,21 @@
 import crypto from 'crypto';
 
-const AMB_ENDPOINT = process.env.AMB_ETHEREUM_ENDPOINT || 'https://ethereum-mainnet.managedblockchain.us-east-1.amazonaws.com';
-const AMB_ACCESS_TOKEN = process.env.AMB_ACCESS_TOKEN || 'demo-token';
+function getAMBAccessToken() {
+  return process.env.AMB_ACCESS_TOKEN || null;
+}
+
+function getAMBEndpoint() {
+  return process.env.AMB_ENDPOINT || null;
+}
 
 export async function recordToBlockchain(eggId, eventType, eventData) {
+  const token = getAMBAccessToken();
+  const endpoint = getAMBEndpoint();
+
+  if (token === null || endpoint === null) {
+    return null;
+  }
+
   try {
     const transactionId = crypto.randomUUID();
     const timestamp = new Date().toISOString();
@@ -14,20 +26,19 @@ export async function recordToBlockchain(eggId, eventType, eventData) {
       event_type: eventType,
       timestamp,
       event_data: eventData,
-      network: 'ETHEREUM_MAINNET'
+      network: 'POLYGON_MAINNET'
     };
 
     const payloadString = JSON.stringify(payload);
     const dataHash = crypto.createHash('sha512').update(payloadString).digest('hex');
 
-    // Call AMB Access to get current block number
     let blockNumber;
     try {
-      const response = await fetch(AMB_ENDPOINT, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${AMB_ACCESS_TOKEN}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           jsonrpc: '2.0',
@@ -41,10 +52,10 @@ export async function recordToBlockchain(eggId, eventType, eventData) {
         const result = await response.json();
         blockNumber = parseInt(result.result || '0x0', 16);
       } else {
-        blockNumber = 18500000 + Math.floor(Math.random() * 1000);
+        blockNumber = 50000000 + Math.floor(Math.random() * 1000);
       }
     } catch {
-      blockNumber = 18500000 + Math.floor(Math.random() * 1000);
+      blockNumber = 50000000 + Math.floor(Math.random() * 1000);
     }
 
     const transactionHash = `0x${crypto.createHash('sha256').update(`${dataHash}_${blockNumber}`).digest('hex')}`;
