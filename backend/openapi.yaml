@@ -1,0 +1,401 @@
+openapi: 3.0.3
+info:
+  title: Chicken Vision API
+  description: API for managing egg clutch uploads and analysis
+  version: 1.0.0
+
+x-amazon-apigateway-request-validators:
+  Validate All:
+    validateRequestParameters: true
+    validateRequestBody: true
+x-amazon-apigateway-gateway-responses:
+  BAD_REQUEST_BODY:
+    statusCode: 400
+    responseTemplates:
+      application/json: '{ "message": "$context.error.validationErrorString" }'
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+  DEFAULT_4XX:
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+  DEFAULT_5XX:
+    responseParameters:
+      gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+      gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+      gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,DELETE,OPTIONS'"
+
+tags:
+  - name: clutches
+    description: Clutch management operations
+  - name: upload
+    description: Image upload operations
+
+paths:
+  /clutches:
+    post:
+      tags:
+        - upload
+      summary: Get presigned URL for clutch image upload
+      description: Generates a presigned S3 URL for uploading a clutch image and creates a clutch record in DynamoDB
+      operationId: uploadClutch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fileName:
+                  type: string
+                  description: Name of the file to upload
+                  example: my-clutch.jpg
+                contentType:
+                  type: string
+                  description: MIME type of the image
+                  example: image/jpeg
+                  enum:
+                    - image/jpeg
+                    - image/png
+                    - image/gif
+                    - image/webp
+              required:
+                - fileName
+                - contentType
+      responses:
+        '200':
+          description: Presigned URL generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uploadUrl:
+                    type: string
+                    format: uri
+                    description: Presigned S3 URL for uploading the image
+                    example: https://bucket-name.s3.amazonaws.com/clutches/uuid/upload.jpg?X-Amz-Algorithm=...
+                  clutchId:
+                    type: string
+                    format: uuid
+                    description: Unique identifier for the clutch
+                    example: 550e8400-e29b-41d4-a716-446655440000
+                  imageKey:
+                    type: string
+                    description: S3 object key for the uploaded image
+                    example: clutches/550e8400-e29b-41d4-a716-446655440000/upload.jpg
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UploadClutchFunction.Arn}/invocations
+        httpMethod: POST
+        type: aws_proxy
+    get:
+      tags:
+        - clutches
+      summary: List all clutches
+      description: Retrieves a list of all clutch records sorted by upload timestamp (newest first)
+      operationId: listClutches
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of clutches to return
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: nextToken
+          in: query
+          description: Pagination token for retrieving the next page of results
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of clutches retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clutches:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ClutchSummary'
+                  nextToken:
+                    type: string
+                    description: Token for retrieving the next page of results
+                    nullable: true
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ListClutchesFunction.Arn}/invocations
+        httpMethod: POST
+        type: aws_proxy
+
+  /clutches/{id}:
+    get:
+      tags:
+        - clutches
+      summary: Get clutch details with eggs
+      description: Retrieves detailed information about a specific clutch including all detected eggs and their analysis
+      operationId: getClutch
+      parameters:
+        - name: id
+          in: path
+          description: Clutch ID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Clutch details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClutchDetail'
+        '404':
+          description: Clutch not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetClutchFunction.Arn}/invocations
+        httpMethod: POST
+        type: aws_proxy
+
+components:
+  schemas:
+    ClutchSummary:
+      type: object
+      description: Summary information about a clutch
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique clutch identifier
+          example: 550e8400-e29b-41d4-a716-446655440000
+        uploadTimestamp:
+          type: string
+          format: date-time
+          description: When the clutch was uploaded
+          example: '2025-12-09T10:30:00Z'
+        imageKey:
+          type: string
+          description: S3 object key for the clutch image
+          example: clutches/550e8400-e29b-41d4-a716-446655440000/upload.jpg
+        imageUrl:
+          type: string
+          format: uri
+          description: Presigned URL to view the clutch image
+          example: https://bucket-name.s3.amazonaws.com/clutches/uuid/upload.jpg?X-Amz-Algorithm=...
+        createdAt:
+          type: string
+          format: date-time
+          description: Record creation timestamp
+          example: '2025-12-09T10:30:00Z'
+        eggCount:
+          type: integer
+          description: Number of eggs detected in the clutch
+          example: 12
+        processingStatus:
+          type: string
+          description: Current processing status of the clutch
+          enum:
+            - pending
+            - detecting
+            - analyzing
+            - complete
+          example: complete
+        consolidatedFindingsUrl:
+          type: string
+          format: uri
+          description: URL to consolidated findings document
+          nullable: true
+
+    ClutchDetail:
+      type: object
+      description: Detailed clutch information including all eggs
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique clutch identifier
+        uploadTimestamp:
+          type: string
+          format: date-time
+          description: When the clutch was uploaded
+        imageKey:
+          type: string
+          description: S3 object key for the clutch image
+        imageUrl:
+          type: string
+          format: uri
+          description: Presigned URL to view the clutch image
+        createdAt:
+          type: string
+          format: date-time
+          description: Record creation timestamp
+        processingStatus:
+          type: string
+          description: Current processing status
+          enum:
+            - pending
+            - detecting
+            - analyzing
+            - complete
+        consolidatedFindingsUrl:
+          type: string
+          format: uri
+          description: URL to consolidated findings document
+          nullable: true
+        eggs:
+          type: array
+          description: List of eggs detected in this clutch
+          items:
+            $ref: '#/components/schemas/Egg'
+
+    Egg:
+      type: object
+      description: Detailed egg analysis information
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique egg identifier
+          example: 660e8400-e29b-41d4-a716-446655440001
+        clutchId:
+          type: string
+          format: uuid
+          description: Parent clutch ID
+        hatchLikelihood:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Likelihood of successful hatching (0-100%)
+          example: 85.5
+        possibleHenBreeds:
+          type: array
+          description: Possible breeds of the hen that laid this egg
+          items:
+            type: string
+          example:
+            - Rhode Island Red
+            - Plymouth Rock
+        predictedChickBreed:
+          type: string
+          description: Most likely breed of the chick
+          example: Rhode Island Red
+        breedConfidence:
+          type: string
+          description: Confidence level in breed prediction
+          enum:
+            - high
+            - medium
+            - low
+            - uncertain
+          example: high
+        chickenAppearance:
+          $ref: '#/components/schemas/ChickenAppearance'
+        notes:
+          type: string
+          description: Additional observations from analysis
+          example: Shell shows good calcium deposits, healthy color
+        analysisTimestamp:
+          type: string
+          format: date-time
+          description: When the egg was analyzed
+          example: '2025-12-09T10:35:00Z'
+        chickImageUrl:
+          type: string
+          format: uri
+          description: URL to generated chick image
+          nullable: true
+        chickMusicUrl:
+          type: string
+          format: uri
+          description: URL to comfort song for non-viable eggs
+          nullable: true
+        blockchainTxHash:
+          type: string
+          description: Blockchain transaction hash for egg record
+          nullable: true
+          example: '0x1234567890abcdef...'
+
+    ChickenAppearance:
+      type: object
+      description: Visual characteristics of the predicted chicken
+      properties:
+        plumageColor:
+          type: string
+          description: Primary feather coloring
+          example: red-brown
+        combType:
+          type: string
+          description: Style of comb on the chicken's head
+          example: single
+        bodyType:
+          type: string
+          description: Overall body size and shape
+          example: large/heavy
+        featherPattern:
+          type: string
+          description: Pattern of feathers
+          example: solid
+        legColor:
+          type: string
+          description: Color of the chicken's legs
+          example: yellow
+
+    Error:
+      type: object
+      description: Error response
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: Something went wrong
+        error:
+          type: string
+          description: Detailed error information
+          nullable: true
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for authentication (if enabled)
+
+security: []

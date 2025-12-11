@@ -37,7 +37,7 @@ Metadata:
 
 Globals:
   Function:
-    Runtime: nodejs22.x
+    Runtime: nodejs24.x
     CodeUri: functions
     Architectures:
       - arm64
@@ -48,6 +48,11 @@ Globals:
       Variables:
         AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
         TABLE_NAME: !Ref DataTable
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+      AllowOrigin: "'*'"
 
 Resources:
   AMBAccessor:
@@ -57,21 +62,15 @@ Resources:
       AccessorType: BILLING_TOKEN
       NetworkType: POLYGON_MAINNET
 
-  HttpApi:
-    Type: AWS::Serverless::HttpApi
+  Api:
+    Type: AWS::Serverless::Api
     Properties:
-      CorsConfiguration:
-        AllowMethods:
-          - GET
-          - POST
-          - PUT
-          - DELETE
-          - OPTIONS
-        AllowHeaders:
-          - Content-Type
-          - Authorization
-        AllowOrigins:
-          - '*'
+      StageName: api
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: ./openapi.yaml
 
   # Data Storage
   DataTable:
@@ -170,6 +169,8 @@ Resources:
             - Effect: Allow
               Action:
                 - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
               Resource: !GetAtt DataTable.Arn
       Events:
         S3Upload:
@@ -300,7 +301,7 @@ Resources:
       CorsConfiguration:
         CorsRules:
           - AllowedOrigins: ['*']
-            AllowedMethods: [PUT, POST]
+            AllowedMethods: [PUT, POST, GET]
             AllowedHeaders: ['*']
             MaxAge: 3000
       BucketEncryption:
@@ -308,10 +309,10 @@ Resources:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
       PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
 
   UploadClutchFunction:
     Type: AWS::Serverless::Function
@@ -339,10 +340,10 @@ Resources:
               Resource: !GetAtt DataTable.Arn
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref HttpApi
-            Path: /upload/presigned-url
+            RestApiId: !Ref Api
+            Path: /clutches
             Method: post
 
   ChickImageGenerator:
@@ -354,7 +355,6 @@ Resources:
         EntryPoints:
           - agents/chick-image-generator.mjs
     Properties:
-      Runtime: nodejs22.x
       Handler: agents/chick-image-generator.handler
       Timeout: 120
       MemorySize: 1024
@@ -378,6 +378,7 @@ Resources:
             - Effect: Allow
               Action:
                 - s3:PutObject
+                - s3:PutObjectAcl
               Resource: !Sub '${ImageUploadBucket.Arn}/*'
             - Effect: Allow
               Action:
@@ -461,9 +462,9 @@ Resources:
                 - !Sub '${DataTable.Arn}/index/entities'
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref HttpApi
+            RestApiId: !Ref Api
             Path: /clutches
             Method: get
 
@@ -477,6 +478,9 @@ Resources:
           - clutches/get-clutch.mjs
     Properties:
       Handler: clutches/get-clutch.handler
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref ImageUploadBucket
       Policies:
         - Statement:
             - Effect: Allow
@@ -485,9 +489,9 @@ Resources:
               Resource: !GetAtt DataTable.Arn
       Events:
         Api:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref HttpApi
+            RestApiId: !Ref Api
             Path: /clutches/{id}
             Method: get
 
@@ -546,7 +550,15 @@ Resources:
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
-              Resource: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*'
+              Resource:
+                - !Sub arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/*
+                - !Sub arn:${AWS::Partition}:bedrock:*::foundation-model/amazon.nova-canvas-v1:0
+            - Effect: Allow
+              Action:
+                - bedrock:ListInferenceProfiles
+              Resource:
+                - !Sub arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/us.amazon.nova-canvas-v1:0
+                - !Sub arn:${AWS::Partition}:bedrock:*::foundation-model/amazon.nova-canvas-v1:0
             - Effect: Allow
               Action:
                 - s3:PutObject
@@ -565,7 +577,7 @@ Resources:
 Outputs:
   ApiUrl:
     Description: HTTP API endpoint URL
-    Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com'
+    Value: !Sub 'https://${Api}.execute-api.${AWS::Region}.amazonaws.com/api'
   TableName:
     Description: DynamoDB table name
     Value: !Ref DataTable

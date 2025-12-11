@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, DragEvent, ChangeEvent } from 'react';
+import ClutchStatusTracker from './ClutchStatusTracker';
 
 interface UploadState {
   uploading: boolean;
@@ -8,18 +9,24 @@ interface UploadState {
   error: string | null;
   uploadedUrl: string | null;
   preview: string | null;
+  clutchId: string | null;
+}
+
+interface ImageUploadProps {
+  onComplete?: (clutchId: string) => void;
 }
 
 const VALID_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
-export default function ImageUpload() {
+export default function ImageUpload({ onComplete }: ImageUploadProps) {
   const [state, setState] = useState<UploadState>({
     uploading: false,
     progress: 0,
     error: null,
     uploadedUrl: null,
-    preview: null
+    preview: null,
+    clutchId: null
   });
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -54,7 +61,7 @@ export default function ImageUpload() {
     try {
       // Request presigned URL
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      const response = await fetch(`${apiUrl}/upload/presigned-url`, {
+      const response = await fetch(`${apiUrl}/api/clutches`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -68,7 +75,7 @@ export default function ImageUpload() {
         throw new Error(errorData.error || 'Failed to get upload URL');
       }
 
-      const { presignedUrl, objectKey } = await response.json();
+      const { presignedUrl, objectKey, clutchId } = await response.json();
 
       // Upload to S3
       const uploadResponse = await fetch(presignedUrl, {
@@ -86,6 +93,7 @@ export default function ImageUpload() {
         uploading: false,
         progress: 100,
         uploadedUrl: objectKey,
+        clutchId,
         error: null
       }));
     } catch (err) {
@@ -94,7 +102,8 @@ export default function ImageUpload() {
         ...prev,
         uploading: false,
         error: err instanceof Error ? err.message : 'Upload failed. Please try again.',
-        uploadedUrl: null
+        uploadedUrl: null,
+        clutchId: null
       }));
     }
   };
@@ -131,12 +140,24 @@ export default function ImageUpload() {
   };
 
   const handleRetry = () => {
+    // Clean up preview URL to prevent memory leaks
+    if (state.preview) {
+      URL.revokeObjectURL(state.preview);
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    // Reset state
     setState({
       uploading: false,
       progress: 0,
       error: null,
       uploadedUrl: null,
-      preview: null
+      preview: null,
+      clutchId: null
     });
   };
 
@@ -170,27 +191,25 @@ export default function ImageUpload() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
             <p className="text-gray-600">Uploading...</p>
           </div>
-        ) : state.uploadedUrl ? (
+        ) : state.clutchId ? (
           <div className="space-y-4">
-            <svg className="w-16 h-16 text-green-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <p className="text-green-600 font-medium">Upload successful!</p>
-            {state.preview && (
-              <img
-                src={state.preview}
-                alt="Uploaded"
-                className="max-w-full max-h-64 mx-auto rounded-lg shadow-md"
-              />
-            )}
+            <ClutchStatusTracker
+              clutchId={state.clutchId}
+              onComplete={() => {
+                // Redirect to main results view when analysis completes
+                if (onComplete && state.clutchId) {
+                  onComplete(state.clutchId);
+                }
+              }}
+            />
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 handleRetry();
               }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
             >
-              Upload Another
+              Count More Chickens
             </button>
           </div>
         ) : (
@@ -200,14 +219,14 @@ export default function ImageUpload() {
             </svg>
             <div>
               <p className="text-lg font-medium text-gray-700">
-                Drag and drop an image here
+                Drop your eggs here for counting
               </p>
               <p className="text-sm text-gray-500 mt-1">
-                or click to select a file
+                We'll predict which ones become chickens
               </p>
             </div>
             <p className="text-xs text-gray-400">
-              Supports JPEG, PNG, GIF, WebP (max 10MB)
+              JPEG, PNG, GIF, WebP welcome • Grandma's advice not required
             </p>
           </div>
         )}

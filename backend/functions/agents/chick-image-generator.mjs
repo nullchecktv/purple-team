@@ -42,17 +42,19 @@ export const handler = async (event) => {
       const imageBase64 = await generateImage(prompt);
 
       // Upload to S3
-      const s3Key = `chicks/${pk}/${eggId}.png`;
+      const clutchId = pk.replace('CLUTCH#', '');
+      const s3Key = `clutches/${clutchId}/chicks/${eggId}.png`;
       await uploadToS3(s3Key, imageBase64);
 
-      const s3Uri = `s3://${BUCKET_NAME}/${s3Key}`;
-      console.log(`Uploaded chick image to ${s3Uri}`);
+      const imageUrl = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
+      console.log(`Uploaded chick image to ${imageUrl}`);
 
       // Record to blockchain (non-blocking)
       let blockchainTx = null;
       try {
         blockchainTx = await recordToBlockchain(eggId, 'CHICK_IMAGE_GENERATED', {
-          clutchId: pk.replace('CLUTCH#', ''),
+          clutchId,
+          imageUrl,
           s3Key,
           predictedChickBreed,
           hatchLikelihood
@@ -62,11 +64,10 @@ export const handler = async (event) => {
       }
 
       // Update DynamoDB record
-      await updateRecord(pk, sk, s3Uri, blockchainTx);
+      await updateRecord(pk, sk, imageUrl, blockchainTx);
       console.log(`Updated egg record ${eggId} with chickImageUrl`);
 
       // Fire Egg Processing Completed event
-      const clutchId = pk.replace('CLUTCH#', '');
       await publishEggProcessingCompleted(clutchId, eggId);
       console.log(`Published Egg Processing Completed event for clutch ${clutchId}`);
 
@@ -139,13 +140,13 @@ async function uploadToS3(key, base64Image) {
   }));
 }
 
-async function updateRecord(pk, sk, s3Uri, blockchainTx) {
+async function updateRecord(pk, sk, imageUrl, blockchainTx) {
   const updateExpression = blockchainTx
     ? 'SET chickImageUrl = :url, chickImageGeneratedAt = :ts, imageBlockchainTxId = :txId, imageBlockchainHash = :txHash'
     : 'SET chickImageUrl = :url, chickImageGeneratedAt = :ts';
 
   const expressionValues = {
-    ':url': s3Uri,
+    ':url': imageUrl,
     ':ts': new Date().toISOString()
   };
 

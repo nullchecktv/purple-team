@@ -1,7 +1,7 @@
 import { BedrockRuntimeClient, ConverseCommand } from '@aws-sdk/client-bedrock-runtime';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, UpdateCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 
 const bedrock = new BedrockRuntimeClient({});
@@ -69,21 +69,42 @@ async function handleStoreEggData(toolInput, clutchId) {
   return { success: true, eggId, message: `Egg ${eggId} saved successfully` };
 }
 
-// Create clutch metadata record
-async function createClutchMetadata(clutchId, imageKey) {
-  const now = new Date().toISOString();
-  const clutchRecord = {
-    pk: `CLUTCH#${clutchId}`,
-    sk: 'METADATA',
-    id: clutchId,
-    uploadTimestamp: now,
-    imageKey,
-    createdAt: now,
-    GSI1PK: 'CLUTCHES',
-    GSI1SK: now
-  };
-  await ddb.send(new PutCommand({ TableName: TABLE_NAME, Item: clutchRecord }));
-  console.log('Created clutch metadata:', clutchId);
+
+
+// Update clutch status
+async function updateClutchStatus(clutchId, status) {
+  await ddb.send(new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: { pk: `CLUTCH#${clutchId}`, sk: 'METADATA' },
+    UpdateExpression: 'SET #status = :status',
+    ExpressionAttributeNames: { '#status': 'status' },
+    ExpressionAttributeValues: { ':status': status }
+  }));
+  console.log('Updated clutch status:', clutchId, 'to', status);
+}
+
+// Update clutch status and egg count
+async function updateClutchStatusAndCount(clutchId, status, eggCount) {
+  await ddb.send(new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: { pk: `CLUTCH#${clutchId}`, sk: 'METADATA' },
+    UpdateExpression: 'SET #status = :status, eggCount = :eggCount',
+    ExpressionAttributeNames: { '#status': 'status' },
+    ExpressionAttributeValues: { ':status': status, ':eggCount': eggCount }
+  }));
+  console.log('Updated clutch status:', clutchId, 'to', status, 'with egg count:', eggCount);
+}
+
+async function countClutchEggs(clutchId) {
+  const response = await ddb.send(new QueryCommand({
+    TableName: TABLE_NAME,
+    KeyConditionExpression: 'pk = :pk AND begins_with(sk, :sk)',
+    ExpressionAttributeValues: {
+      ':pk': `CLUTCH#${clutchId}`,
+      ':sk': 'EGG#'
+    }
+  }));
+  return response.Items?.length || 0;
 }
 
 export const handler = async (event) => {
@@ -98,6 +119,14 @@ export const handler = async (event) => {
     return { statusCode: 400, body: 'Missing bucket or key' };
   }
 
+  // Extract clutchId from S3 object key (format: clutches/{clutchId}/upload.{ext})
+  const keyParts = key.split('/');
+  if (keyParts.length < 3 || keyParts[0] !== 'clutches') {
+    console.error('Invalid S3 key format. Expected: clutches/{clutchId}/upload.{ext}');
+    return { statusCode: 400, body: 'Invalid S3 key format' };
+  }
+  const clutchId = keyParts[1];
+
   // Get image from S3
   const s3Response = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
   const imageBytes = await s3Response.Body.transformToByteArray();
@@ -108,12 +137,15 @@ export const handler = async (event) => {
   const mediaTypes = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
   const mediaType = mediaTypes[ext] || 'image/jpeg';
 
-  // Create clutch for this image
-  const clutchId = randomUUID();
-  await createClutchMetadata(clutchId, key);
+  // Update status to "Detecting Eggs"
+  await updateClutchStatus(clutchId, 'Detecting Eggs');
 
   // Run agent loop
   await runAgentLoop(base64Image, mediaType, clutchId);
+
+  // Count eggs and update status to "Determining Egg Viability"
+  const eggCount = await countClutchEggs(clutchId);
+  await updateClutchStatusAndCount(clutchId, 'Determining Egg Viability', eggCount);
 
   return { statusCode: 200, body: JSON.stringify({ clutchId }) };
 };

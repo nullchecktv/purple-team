@@ -1,5 +1,6 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { formatResponse } from '../utils/api.mjs';
 
 const ddbClient = new DynamoDBClient({});
 const ddb = DynamoDBDocumentClient.from(ddbClient);
@@ -52,17 +53,9 @@ export const handler = async () => {
       })
     );
 
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clutches: clutchSummaries })
-    };
+    return formatResponse(200, { clutches: clutchSummaries });
   } catch (err) {
     console.error('Error listing clutches:', err);
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Failed to retrieve clutches', code: 'INTERNAL_ERROR' })
-    };
+    return formatResponse(500, { error: 'Failed to retrieve clutches', code: 'INTERNAL_ERROR' });
   }
 };

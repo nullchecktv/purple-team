@@ -20,6 +20,8 @@ export const handler = async (event) => {
       throw new Error('Missing clutchId in event detail');
     }
 
+    await updateClutchStatus(clutchId, 'Calculating Flock Numbers');
+
     const { metadata, eggs } = await queryClutchAndEggs(clutchId);
 
     if (!metadata) {
@@ -72,6 +74,23 @@ export const handler = async (event) => {
   }
 };
 
+async function updateClutchStatus(clutchId, status) {
+  await ddb.send(new UpdateCommand({
+    TableName: TABLE_NAME,
+    Key: {
+      pk: `CLUTCH#${clutchId}`,
+      sk: 'METADATA'
+    },
+    UpdateExpression: 'SET #status = :status',
+    ExpressionAttributeNames: {
+      '#status': 'status'
+    },
+    ExpressionAttributeValues: {
+      ':status': status
+    }
+  }));
+}
+
 async function queryClutchAndEggs(clutchId) {
   const response = await ddb.send(new QueryCommand({
     TableName: TABLE_NAME,
@@ -106,22 +125,19 @@ export function buildChickenImagePrompt(viableEggs) {
     return null;
   }
 
-  const chickenDescriptions = viableEggs.map((egg, index) => {
-    const appearance = egg.chickenAppearance || {};
+  // Group eggs by breed and count them
+  const breedCounts = {};
+  viableEggs.forEach(egg => {
     const breed = egg.predictedChickBreed || 'mixed breed';
-    const plumage = appearance.plumageColor || 'brown';
-    const comb = appearance.combType || 'single';
-    const body = appearance.bodyType || 'medium';
-    const pattern = appearance.featherPattern || 'solid';
-    const legs = appearance.legColor || 'yellow';
+    breedCounts[breed] = (breedCounts[breed] || 0) + 1;
+  });
 
-    return `- Chicken ${index + 1}: A true-to-breed ${breed} chicken with authentic ${plumage} ${pattern} plumage, characteristic ${comb} comb, ${body} build, and ${legs} legs`;
-  }).join('\n');
+  // Create concise breed list
+  const breedList = Object.entries(breedCounts)
+    .map(([breed, count]) => count === 1 ? `1 ${breed}` : `${count} ${breed}s`)
+    .join(', ');
 
-  return `A photorealistic photograph of ${viableCount} adult chicken${viableCount > 1 ? 's' : ''} foraging and scratching in a lush green grassy pasture on a sunny day.
-Each chicken must be anatomically accurate and true to its specific breed characteristics:
-${chickenDescriptions}
-The chickens are actively scratching the ground, pecking at grass, and foraging naturally. Soft golden sunlight, shallow depth of field, detailed feather textures showing breed-specific patterns, professional wildlife photography style.`;
+  return `A photorealistic photograph of ${viableCount} adult chicken${viableCount > 1 ? 's' : ''} (${breedList}) foraging and scratching in a lush green grassy pasture on a sunny day. Each chicken should display authentic breed characteristics. The chickens are actively scratching the ground, pecking at grass, and foraging naturally. Soft golden sunlight, shallow depth of field, detailed feather textures, professional wildlife photography style.`;
 }
 
 async function generateChickenImage(viableEggs) {
@@ -179,14 +195,15 @@ async function updateClutchRecord(clutchId, totalEggCount, viableEggCount, chick
   const consolidatedAt = new Date().toISOString();
 
   const updateExpression = blockchainTx
-    ? 'SET totalEggCount = :total, viableEggCount = :viable, chickenImageKey = :imageKey, consolidatedAt = :consolidatedAt, consolidationBlockchainTxId = :txId, consolidationBlockchainHash = :txHash'
-    : 'SET totalEggCount = :total, viableEggCount = :viable, chickenImageKey = :imageKey, consolidatedAt = :consolidatedAt';
+    ? 'SET totalEggCount = :total, viableEggCount = :viable, chickenImageKey = :imageKey, consolidatedAt = :consolidatedAt, consolidationBlockchainTxId = :txId, consolidationBlockchainHash = :txHash, #status = :status'
+    : 'SET totalEggCount = :total, viableEggCount = :viable, chickenImageKey = :imageKey, consolidatedAt = :consolidatedAt, #status = :status';
 
   const expressionValues = {
     ':total': totalEggCount,
     ':viable': viableEggCount,
     ':imageKey': chickenImageKey,
-    ':consolidatedAt': consolidatedAt
+    ':consolidatedAt': consolidatedAt,
+    ':status': 'Completed'
   };
 
   if (blockchainTx) {
@@ -201,6 +218,9 @@ async function updateClutchRecord(clutchId, totalEggCount, viableEggCount, chick
       sk: 'METADATA'
     },
     UpdateExpression: updateExpression,
+    ExpressionAttributeNames: {
+      '#status': 'status'
+    },
     ExpressionAttributeValues: expressionValues
   }));
 }
