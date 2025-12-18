@@ -125,7 +125,7 @@ graph TB
     Consolidator -->|Generate flock image| DDB
 
     %% Frontend Polling
-    Tracker -->|GET /clutches/{id}| GetFunc
+    Tracker -->|"GET /clutches/{id}"| GetFunc
     GetFunc -->|Query data| DDB
     GetFunc -->|Return status| Results
 
